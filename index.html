@@ -145,25 +145,32 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
 /* ── BRIDGE EDIT MODE ── */
 .be-toolbar{
   display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);
-  background:rgba(6,6,6,.95);border:1px solid var(--border);
-  padding:6px 10px;display:none;align-items:center;gap:7px;z-index:10;
-  font-family:var(--font-m);font-size:9px;
+  background:rgba(6,6,6,.97);border:1px solid var(--border);
+  padding:6px 10px;align-items:center;gap:8px;z-index:10;
+  font-family:var(--font-m);font-size:9px;white-space:nowrap;
 }
 .be-toolbar.on{display:flex}
-.be-title{font-family:var(--font-d);font-size:18px;letter-spacing:3px;color:var(--accent);padding-right:6px;border-right:1px solid var(--border)}
+.be-title{font-family:var(--font-d);font-size:18px;letter-spacing:3px;color:var(--accent);
+  padding-right:8px;border-right:1px solid var(--border);flex-shrink:0}
+.be-sep{color:#333;flex-shrink:0}
 .be-btn{font-family:var(--font-m);font-size:9px;letter-spacing:2px;padding:4px 8px;
   background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;
-  text-transform:uppercase;transition:all .12s;white-space:nowrap}
+  text-transform:uppercase;transition:all .12s;white-space:nowrap;flex-shrink:0}
 .be-btn:hover{border-color:#555;color:var(--text)}
 .be-btn.active{background:var(--panel2);border-color:var(--accent);color:var(--accent)}
+.be-btn.line-erase.active{border-color:#ff6644;color:#ff6644}
 .be-btn.done{border-color:var(--gold);color:var(--gold)}
 .be-btn.done:hover{background:rgba(255,215,0,.1)}
-.be-btn.rst{border-color:#555}
-.be-hint{font-size:8px;color:#777777;letter-spacing:1px}
-#previewCanvas.be-active{cursor:pointer}
+.be-hint{font-size:8px;color:#777;letter-spacing:1px;flex-shrink:0}
+.be-size-wrap{display:flex;align-items:center;gap:5px;flex-shrink:0}
+/* island mode hints */
+#beIslandHints{display:contents}
+/* line mode controls */
+#beLineControls{display:none;align-items:center;gap:8px}
+#previewCanvas.be-island{cursor:pointer}
+#previewCanvas.be-line-draw{cursor:crosshair}
+#previewCanvas.be-line-erase{cursor:cell}
 .lh-btn.be-active{color:#FF2200;border-color:#FF2200}
-.be-size-row{display:flex;align-items:center;gap:5px}
-.be-size-lbl{font-size:7px;color:var(--muted);white-space:nowrap}
 
 </style>
 </head>
@@ -248,11 +255,31 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
       <canvas id="previewCanvas"></canvas>
       <div class="be-toolbar" id="beToolbar">
         <span class="be-title" id="beTitle">CAPA 1</span>
-        <span class="be-hint" id="beCount">—</span>
-        <span class="be-hint" style="color:#333333">|</span>
-        <span class="be-hint"><span style="color:#6699ff">●</span> <span style="color:#999">auto</span></span>
-        <span class="be-hint"><span style="color:#ff4444">✕</span> <span style="color:#999">sin puente</span></span>
-        <span class="be-hint"><span style="color:#44ff88">+</span> <span style="color:#999">forzar</span></span>
+        <!-- mode toggles -->
+        <button class="be-btn active" id="beModeIsland">⬡ ISLA</button>
+        <button class="be-btn" id="beModeLine">╱ LÍNEA</button>
+        <span class="be-sep">|</span>
+        <!-- island mode hints -->
+        <span id="beIslandHints">
+          <span class="be-hint" id="beCount">—</span>
+          <span class="be-hint"><span style="color:#6699ff">●</span> <span style="color:#999">auto</span></span>
+          <span class="be-hint"><span style="color:#ff4444">✕</span> <span style="color:#999">sin puente</span></span>
+          <span class="be-hint"><span style="color:#44ff88">+</span> <span style="color:#999">forzar</span></span>
+        </span>
+        <!-- line mode controls -->
+        <span id="beLineControls">
+          <button class="be-btn active" id="beLineDrawBtn">╱ AÑADIR</button>
+          <button class="be-btn line-erase" id="beLineEraseBtn">✕ BORRAR</button>
+          <span class="be-sep" style="margin:0 2px">|</span>
+          <span class="be-hint">Ø</span>
+          <input type="range" id="beSizeSlider" min="1" max="40" step="1" value="6"
+            style="width:60px;height:2px;background:var(--border);cursor:pointer;flex-shrink:0">
+          <span class="be-hint" id="beSizeVal">6px</span>
+          <span class="be-sep" style="margin:0 2px">|</span>
+          <span class="be-hint" id="beLineHint" style="color:#666">1er clic: inicio</span>
+          <span class="be-hint" id="beLineCount" style="color:#777">—</span>
+        </span>
+        <span class="be-sep">|</span>
         <button class="be-btn rst" id="beResetBtn">↺ RESET</button>
         <button class="be-btn done" id="beDoneBtn">✓ LISTO</button>
       </div>
@@ -371,7 +398,8 @@ const S = {
   kmPixels:null, kmAssign:null, kmCentroids:null,
   layers:[], masks:[],
   bridgeOverrides:[], // per layer: {skip:Set<sid>, force:Set<sid>}
-  beData:null         // active bridge edit state
+  manualLines:[],     // per layer: [{x1,y1,x2,y2,r}]  (drawn lines)
+  beData:null         // active bridge edit state + {tool,lineStart}
 };
 
 /* ═══════════════════════════════════════════
@@ -616,6 +644,31 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
       placed.push(cand);
     }
     if(placed.length>0)for(const idx of isle)isConn[idx]=1;
+  }
+  return result;
+}
+
+/* Rasterise manual drawn/erased lines onto a mask copy */
+function applyManualLines(mask,w,h,origMask,lines){
+  if(!lines||!lines.length)return mask;
+  const result=new Uint8Array(mask);
+  for(const{x1,y1,x2,y2,r,erase} of lines){
+    const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+    const steps=Math.max(1,Math.ceil(len));
+    const r2=r*r;
+    for(let i=0;i<=steps;i++){
+      const t=i/steps;
+      const px=Math.round(x1+dx*t),py=Math.round(y1+dy*t);
+      for(let oy=-r;oy<=r;oy++){
+        for(let ox=-r;ox<=r;ox++){
+          if(ox*ox+oy*oy<=r2){
+            const bx=px+ox,by=py+oy;
+            if(bx>=0&&bx<w&&by>=0&&by<h)
+              result[by*w+bx]=erase?origMask[by*w+bx]:0;
+          }
+        }
+      }
+    }
   }
   return result;
 }
@@ -919,7 +972,8 @@ async function previewBridges(){
   const bridgedMasks=S.masks.map((m,li)=>{
     setProgMsg(`${li+1}/${S.masks.length}…`);
     const minI=S.layers[li].minIsle??globalMinIsle;
-    return addBridges(m,w,h,bridgePx,minI,S.layers[li].maxIsle||0,getLayerOverrides(li));
+    const auto=addBridges(m,w,h,bridgePx,minI,S.layers[li].maxIsle||0,getLayerOverrides(li));
+    return applyManualLines(auto,w,h,S.masks[li],S.manualLines[li]||[]);
   });
   setProgress(80);await sleep(10);
   const canvas=$('previewCanvas'),ctx=canvas.getContext('2d');
@@ -949,6 +1003,7 @@ async function analyze(){
     const order=result.centroids.map((c,i)=>({lum:luma(c),i})).sort((a,b)=>b.lum-a.lum).map(x=>x.i);
     S.layers=order.map((ci,pos)=>({centroidIdx:ci,color:rgbToHex(...result.centroids[ci]),threshold:1.0,maxIsle:0,minIsle:50,visible:true,name:`${T('threshold')} ${pos+1}`}));
     S.bridgeOverrides=S.layers.map(()=>({skip:new Set(),force:new Set()}));
+    S.manualLines=S.layers.map(()=>[]);
     setProgress(80);await sleep(10);
     S.masks=S.layers.map(l=>buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,1.0));
     setProgress(95);await sleep(10);
@@ -985,7 +1040,8 @@ async function exportZip(){
     setProgress(pct);setProgMsg(`${li+1}/${total} — bridges…`);await sleep(20);
 
     const minI=layer.minIsle??globalMinIsle;
-    const bridgedMask=addBridges(S.masks[li],w,h,bridgePx,minI,layer.maxIsle||0,getLayerOverrides(li));
+    const autoMask=addBridges(S.masks[li],w,h,bridgePx,minI,layer.maxIsle||0,getLayerOverrides(li));
+    const bridgedMask=applyManualLines(autoMask,w,h,S.masks[li],S.manualLines[li]||[]);
 
     const num=String(li+1).padStart(2,'0');
     const col=layer.color.replace('#','');
@@ -1116,51 +1172,95 @@ function getBeLayerMask(){
   return addBridges(S.masks[li],w,h,bridgePx,minI,S.layers[li].maxIsle||0,getLayerOverrides(li));
 }
 
-function renderBridgeEditCanvas(){
+function renderBridgeEditCanvas(previewLine=null){
   if(!S.beData)return;
-  const{islands,centroids,li}=S.beData;
+  const{islands,centroids,li,tool}=S.beData;
   const ov=getLayerOverrides(li);
   const mask=getBeLayerMask();
   const w=S.imgW,h=S.imgH;
   const canvas=$('previewCanvas');
   canvas.width=w;canvas.height=h;
   const ctx=canvas.getContext('2d');
+
   // B&W base
   const idata=ctx.createImageData(w,h),px=idata.data;
   for(let i=0;i<w*h;i++){const v=mask[i]>0?0:255;px[i*4]=v;px[i*4+1]=v;px[i*4+2]=v;px[i*4+3]=255;}
   ctx.putImageData(idata,0,0);
-  // Draw island markers at centroids
-  islands.forEach(({sid},idx)=>{
-    const[cx,cy]=centroids[idx];
-    const skip=ov.skip.has(sid),force=ov.force.has(sid);
-    const r=Math.max(5,Math.min(10,4+Math.log2(islands[idx].isle.length||1)));
+
+  if(tool==='island'){
+    // Draw island markers at centroids
+    islands.forEach(({sid},idx)=>{
+      const[cx,cy]=centroids[idx];
+      const skip=ov.skip.has(sid),force=ov.force.has(sid);
+      const r=Math.max(5,Math.min(10,4+Math.log2(islands[idx].isle.length||1)));
+      ctx.save();
+      if(skip){
+        ctx.fillStyle='rgba(255,60,60,0.92)';
+        ctx.strokeStyle='#fff';ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+        ctx.strokeStyle='#fff';ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(cx-r*.5,cy-r*.5);ctx.lineTo(cx+r*.5,cy+r*.5);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(cx+r*.5,cy-r*.5);ctx.lineTo(cx-r*.5,cy+r*.5);ctx.stroke();
+      } else if(force){
+        ctx.fillStyle='rgba(50,230,120,0.92)';
+        ctx.strokeStyle='#fff';ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+        ctx.strokeStyle='#fff';ctx.lineWidth=1.8;
+        ctx.beginPath();ctx.moveTo(cx,cy-r*.55);ctx.lineTo(cx,cy+r*.55);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(cx-r*.55,cy);ctx.lineTo(cx+r*.55,cy);ctx.stroke();
+      } else {
+        ctx.fillStyle='rgba(100,150,255,0.75)';
+        ctx.beginPath();ctx.arc(cx,cy,3,0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+    });
+    const nSkip=ov.skip.size,nForce=ov.force.size;
+    $('beCount').textContent=`${islands.length} islas`+(nSkip?` · ✕${nSkip}`:'')+(nForce?` · +${nForce}`:'');
+
+  } else {
+    // LINE TOOL: draw overlays for committed lines + live preview
+    const lines=S.manualLines[li]||[];
+    const r=parseInt($('beSizeSlider').value)||6;
+
+    // Draw committed lines as coloured overlays
     ctx.save();
-    if(skip){
-      // Red filled = no bridge
-      ctx.fillStyle='rgba(255,60,60,0.92)';
-      ctx.strokeStyle='#fff';ctx.lineWidth=1.2;
-      ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.stroke();
-      ctx.strokeStyle='#fff';ctx.lineWidth=1.5;
-      ctx.beginPath();ctx.moveTo(cx-r*.5,cy-r*.5);ctx.lineTo(cx+r*.5,cy+r*.5);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(cx+r*.5,cy-r*.5);ctx.lineTo(cx-r*.5,cy+r*.5);ctx.stroke();
-    } else if(force){
-      // Green = forced bridge
-      ctx.fillStyle='rgba(50,230,120,0.92)';
-      ctx.strokeStyle='#fff';ctx.lineWidth=1.2;
-      ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.stroke();
-      ctx.strokeStyle='#fff';ctx.lineWidth=1.8;
-      ctx.beginPath();ctx.moveTo(cx,cy-r*.55);ctx.lineTo(cx,cy+r*.55);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(cx-r*.55,cy);ctx.lineTo(cx+r*.55,cy);ctx.stroke();
-    } else {
-      // Blue dot = auto
-      ctx.fillStyle='rgba(100,150,255,0.75)';
-      ctx.beginPath();ctx.arc(cx,cy,3,0,Math.PI*2);ctx.fill();
-    }
+    lines.forEach(line=>{
+      ctx.strokeStyle=line.erase?'rgba(255,100,60,0.55)':'rgba(255,220,0,0.55)';
+      ctx.lineWidth=line.r*2;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(line.x1,line.y1);ctx.lineTo(line.x2,line.y2);ctx.stroke();
+      // start/end dots
+      ctx.fillStyle=line.erase?'rgba(255,80,40,0.85)':'rgba(255,200,0,0.85)';
+      ctx.beginPath();ctx.arc(line.x1,line.y1,Math.max(3,line.r*.6),0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(line.x2,line.y2,Math.max(3,line.r*.6),0,Math.PI*2);ctx.fill();
+    });
     ctx.restore();
-  });
-  // Update counter
-  const nSkip=ov.skip.size,nForce=ov.force.size;
-  $('beCount').textContent=`${islands.length} islas`+(nSkip?` · ✕${nSkip}`:'')+(nForce?` · +${nForce}`:'');
+
+    // Draw start point if waiting for second click
+    if(S.beData.lineStart){
+      const{x,y}=S.beData.lineStart;
+      ctx.save();
+      ctx.fillStyle='rgba(255,200,0,0.9)';
+      ctx.strokeStyle='#fff';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(x,y,r+2,0,Math.PI*2);ctx.fill();ctx.stroke();
+      // preview line to current mouse
+      if(previewLine){
+        const isErase=S.beData.lineTool==='erase';
+        ctx.strokeStyle=isErase?'rgba(255,100,60,0.7)':'rgba(255,220,0,0.7)';
+        ctx.lineWidth=r*2;ctx.lineCap='round';
+        ctx.setLineDash([6,4]);
+        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(previewLine.x,previewLine.y);ctx.stroke();
+        ctx.setLineDash([]);
+        // end indicator
+        ctx.fillStyle=isErase?'rgba(255,80,40,0.8)':'rgba(255,200,0,0.8)';
+        ctx.beginPath();ctx.arc(previewLine.x,previewLine.y,r,0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Update line counter
+    const nl=lines.length,nd=lines.filter(l=>!l.erase).length,ne=lines.filter(l=>l.erase).length;
+    $('beLineCount').textContent=nl?`${nd} línea${nd!==1?'s':''}`+(ne?` · ${ne} borrado${ne!==1?'s':''}`:''): '—';
+  }
 }
 
 /* Canvas coords → image coords */
@@ -1206,55 +1306,185 @@ function beToggleIsland(isleIdx){
   renderBridgeEditCanvas();
 }
 
+/* Set active tool mode and update toolbar UI */
+function beSetTool(tool){
+  if(!S.beData)return;
+  S.beData.tool=tool;
+  S.beData.lineStart=null; // cancel any pending line
+  const canvas=$('previewCanvas');
+  canvas.className='';
+  if(tool==='island'){
+    canvas.classList.add('be-island');
+    $('beModeIsland').classList.add('active');
+    $('beModeLine').classList.remove('active');
+    $('beIslandHints').style.display='contents';
+    $('beLineControls').style.display='none';
+    setStatus(`Bridge edit — capa ${S.beData.li+1}`,'click isla: auto → sin puente → forzar → auto · dcho: reset auto');
+  } else {
+    canvas.classList.add('be-line-draw');
+    $('beModeLine').classList.add('active');
+    $('beModeIsland').classList.remove('active');
+    $('beIslandHints').style.display='none';
+    $('beLineControls').style.display='flex';
+    $('beLineDrawBtn').classList.add('active');
+    $('beLineEraseBtn').classList.remove('active');
+    S.beData.lineTool='draw';
+    $('beLineHint').textContent='1er clic: inicio';
+    setStatus(`Bridge edit — capa ${S.beData.li+1}`,'clic inicio · clic fin · dcho: cancelar · ✕: borrar línea cercana');
+  }
+  renderBridgeEditCanvas();
+}
+
 function enterBridgeEdit(li){
   if(S.beData)exitBridgeEdit(false);
-  S.beData=computeLayerIslands(li);
+  S.beData={...computeLayerIslands(li), tool:'island', lineStart:null, lineTool:'draw'};
   if(!S.bridgeOverrides[li])S.bridgeOverrides[li]={skip:new Set(),force:new Set()};
+  if(!S.manualLines[li])S.manualLines[li]=[];
   $('beTitle').textContent=`CAPA ${li+1}`;
   $('beToolbar').classList.add('on');
-  $('previewCanvas').classList.add('be-active');
   $('placeholder').style.display='none';
   $('previewCanvas').style.display='block';
-  renderBridgeEditCanvas();
+  beSetTool('island');
   renderLayers();
-  setStatus(`Bridge edit — capa ${li+1}`,'click isla: auto → sin puente → forzar → auto');
 }
 
 function exitBridgeEdit(rerender=true){
   S.beData=null;
   $('beToolbar').classList.remove('on');
-  $('previewCanvas').classList.remove('be-active');
+  $('previewCanvas').className='';
   if(rerender){renderLayers();renderPreview();}
   setStatus('—');
 }
 
+/* Find index of closest committed line to a point (for erase) */
+function beFindNearestLine(li,x,y){
+  const lines=S.manualLines[li]||[];
+  let bestD=Infinity,bestI=-1;
+  lines.forEach(({x1,y1,x2,y2,r},i)=>{
+    // Distance from point to segment
+    const dx=x2-x1,dy=y2-y1,len2=dx*dx+dy*dy;
+    let t=len2>0?Math.max(0,Math.min(1,((x-x1)*dx+(y-y1)*dy)/len2)):0;
+    const px=x1+t*dx,py=y1+t*dy;
+    const d=Math.hypot(x-px,y-py);
+    if(d<bestD&&d<Math.max(r*2,20)){bestD=d;bestI=i;}
+  });
+  return bestI;
+}
+
 (function initBridgeEditEvents(){
   const canvas=$('previewCanvas');
+  let mousePos={x:0,y:0};
+
+  canvas.addEventListener('mousemove',e=>{
+    if(!S.beData)return;
+    const{x,y}=canvasToImg(canvas,e.clientX,e.clientY);
+    mousePos={x,y};
+    // Live preview only in line tool with start set
+    if(S.beData.tool==='line'&&S.beData.lineStart){
+      renderBridgeEditCanvas({x,y});
+    }
+  });
+
   canvas.addEventListener('click',e=>{
     if(!S.beData)return;
     const{x,y}=canvasToImg(canvas,e.clientX,e.clientY);
-    const idx=beFindIsland(x,y);
-    if(idx>=0)beToggleIsland(idx);
+    const{tool,li}=S.beData;
+
+    if(tool==='island'){
+      const idx=beFindIsland(x,y);
+      if(idx>=0)beToggleIsland(idx);
+      return;
+    }
+
+    // LINE TOOL
+    const isErase=S.beData.lineTool==='erase';
+    if(isErase){
+      // In erase sub-mode: click removes nearest line
+      const i=beFindNearestLine(li,x,y);
+      if(i>=0){S.manualLines[li].splice(i,1);renderBridgeEditCanvas();}
+      return;
+    }
+
+    if(!S.beData.lineStart){
+      // First click: set start
+      S.beData.lineStart={x,y};
+      $('beLineHint').textContent='2º clic: fin de línea';
+      renderBridgeEditCanvas(mousePos);
+    } else {
+      // Second click: commit line
+      const r=parseInt($('beSizeSlider').value)||6;
+      S.manualLines[li].push({x1:S.beData.lineStart.x,y1:S.beData.lineStart.y,x2:x,y2:y,r,erase:false});
+      S.beData.lineStart=null;
+      $('beLineHint').textContent='1er clic: inicio';
+      renderBridgeEditCanvas();
+    }
   });
+
   canvas.addEventListener('contextmenu',e=>{
-    if(!S.beData)return;
     e.preventDefault();
-    // Right-click: force reset island to auto
+    if(!S.beData)return;
     const{x,y}=canvasToImg(canvas,e.clientX,e.clientY);
-    const idx=beFindIsland(x,y);
-    if(idx<0)return;
-    const{li,islands}=S.beData;
-    const sid=islands[idx].sid;
-    const ov=getLayerOverrides(li);
-    ov.skip.delete(sid);ov.force.delete(sid);
+    const{tool,li}=S.beData;
+    if(tool==='island'){
+      // Reset island to auto
+      const idx=beFindIsland(x,y);
+      if(idx<0)return;
+      const sid=S.beData.islands[idx].sid;
+      const ov=getLayerOverrides(li);
+      ov.skip.delete(sid);ov.force.delete(sid);
+      renderBridgeEditCanvas();
+    } else {
+      // Cancel pending line or remove nearest
+      if(S.beData.lineStart){
+        S.beData.lineStart=null;
+        $('beLineHint').textContent='1er clic: inicio';
+        renderBridgeEditCanvas();
+      } else {
+        const i=beFindNearestLine(li,x,y);
+        if(i>=0){S.manualLines[li].splice(i,1);renderBridgeEditCanvas();}
+      }
+    }
+  });
+
+  // Mode toggle buttons
+  $('beModeIsland').addEventListener('click',()=>{if(S.beData)beSetTool('island');});
+  $('beModeLine').addEventListener('click',()=>{if(S.beData)beSetTool('line');});
+
+  // Line sub-tools
+  $('beLineDrawBtn').addEventListener('click',()=>{
+    if(!S.beData)return;
+    S.beData.lineTool='draw';S.beData.lineStart=null;
+    $('beLineDrawBtn').classList.add('active');
+    $('beLineEraseBtn').classList.remove('active');
+    $('previewCanvas').className='be-line-draw';
+    $('beLineHint').textContent='1er clic: inicio';
     renderBridgeEditCanvas();
   });
+  $('beLineEraseBtn').addEventListener('click',()=>{
+    if(!S.beData)return;
+    S.beData.lineTool='erase';S.beData.lineStart=null;
+    $('beLineEraseBtn').classList.add('active');
+    $('beLineDrawBtn').classList.remove('active');
+    $('previewCanvas').className='be-line-erase';
+    $('beLineHint').textContent='clic en línea para borrar';
+    renderBridgeEditCanvas();
+  });
+
+  $('beSizeSlider').addEventListener('input',e=>{
+    $('beSizeVal').textContent=e.target.value+'px';
+    if(S.beData&&S.beData.lineStart)renderBridgeEditCanvas(mousePos);
+  });
+
   $('beResetBtn').addEventListener('click',()=>{
     if(!S.beData)return;
     const{li}=S.beData;
     S.bridgeOverrides[li]={skip:new Set(),force:new Set()};
+    S.manualLines[li]=[];
+    S.beData.lineStart=null;
+    if(S.beData.tool==='line')$('beLineHint').textContent='1er clic: inicio';
     renderBridgeEditCanvas();
   });
+
   $('beDoneBtn').addEventListener('click',()=>exitBridgeEdit());
 })();
 
