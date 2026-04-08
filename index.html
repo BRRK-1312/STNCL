@@ -157,6 +157,23 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
 .prog-fill{height:2px;background:var(--accent);width:0%;transition:width .25s}
 .prog-msg{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a2a2a}
+/* ── HISTOGRAM ── */
+.hist-wrap{padding:6px 12px 8px;border-bottom:1px solid var(--border)}
+.hist-title{font-size:7px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+#histCanvas{width:100%;height:44px;display:block;image-rendering:pixelated}
+/* ── THUMBNAILS ── */
+.lh-thumb{width:32px;height:32px;flex-shrink:0;border:1px solid #2a2a2a;image-rendering:pixelated;background:#111}
+/* ── SIM PREVIEW ── */
+.sim-btn{font-family:var(--font-m);font-size:8px;letter-spacing:2px;padding:3px 7px;
+  background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .12s;white-space:nowrap}
+.sim-btn:hover{border-color:#555;color:var(--text)}
+.sim-btn.on{border-color:#ff9944;color:#ff9944}
+/* ── PROJECT BTNS ── */
+.hd-proj{display:flex;gap:4px;margin-left:8px}
+.hd-btn{font-family:var(--font-m);font-size:8px;letter-spacing:1px;padding:3px 7px;
+  background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .12s}
+.hd-btn:hover{border-color:#555;color:var(--text)}
+
 /* ── BRIDGE EDIT MODE ── */
 .be-toolbar{
   display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);
@@ -199,6 +216,12 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
     <button class="lang-btn active" data-lang="es">ES</button>
     <button class="lang-btn" data-lang="en">EN</button>
   </div>
+  <div class="hd-proj">
+    <button class="hd-btn sim-btn" id="btnSim" title="Preview simulado">⬛ SIM</button>
+    <button class="hd-btn" id="btnUndo" disabled title="Deshacer Ctrl+Z">↩ UNDO</button>
+    <button class="hd-btn" id="btnSave" disabled>↓ PROYECTO</button>
+    <label class="hd-btn" style="cursor:pointer" title="Cargar proyecto">↑ CARGAR<input type="file" id="loadFile" accept=".stncl.json,.json" style="display:none"></label>
+  </div>
 </header>
 
 <main>
@@ -218,6 +241,16 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
       <div class="ctrl">
         <div class="ctrl-lbl" data-t="num_layers">Número de capas</div>
         <select id="numLayers"></select>
+      </div>
+      <div class="ctrl">
+        <div class="ctrl-lbl">Resolución máx.</div>
+        <select id="maxRes">
+          <option value="800">800 px</option>
+          <option value="1200" selected>1200 px</option>
+          <option value="1600">1600 px</option>
+          <option value="2400">2400 px</option>
+          <option value="0">Original</option>
+        </select>
       </div>
       <button class="btn-run" id="btnAnalyze" disabled data-t="btn_analyze">ANALIZAR</button>
     </div>
@@ -257,6 +290,11 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
         <div class="fmt-btn fmt-svg on" data-fmt="svg">SVG</div>
         <div class="fmt-btn fmt-dxf on" data-fmt="dxf">DXF</div>
         <div class="fmt-btn fmt-png" data-fmt="png">PNG</div>
+        <div class="fmt-btn fmt-hpgl" style="border-color:var(--border);color:var(--muted)" data-fmt="hpgl">HPGL</div>
+      </div>
+      <div class="ctrl" style="margin-top:5px">
+        <div class="ctrl-lbl"><span>DPI salida PNG</span><span class="ctrl-val" id="dpiVal">300</span></div>
+        <input type="range" id="pngDpi" min="72" max="600" step="12" value="300">
       </div>
     </div>
   </aside>
@@ -323,6 +361,10 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
       <span data-t="layers_title">Capas</span>
       <span class="layers-hint" data-t="layers_hint">↕ arrastrar para reordenar</span>
     </div>
+    <div class="hist-wrap" id="histWrap" style="display:none">
+      <div class="hist-title">luminantzia · luminancia · luminance</div>
+      <canvas id="histCanvas" height="44"></canvas>
+    </div>
     <div class="layers-list" id="layersList">
       <div class="layers-empty" data-t="layers_empty">Ejecuta el análisis<br>para ver las capas</div>
     </div>
@@ -330,7 +372,7 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
 </main>
 
 <footer>
-  <div class="ft-info" data-t="ft_info">SVG · DXF · PNG · registro en esquinas · capas individuales</div>
+  <div class="ft-info" data-t="ft_info">SVG · DXF · PNG · HPGL · DPI configurable · registro en esquinas</div>
   <button class="btn-export" id="btnExport" disabled data-t="btn_export">EXPORTAR ZIP</button>
 </footer>
 
@@ -454,7 +496,36 @@ function activeFormats(){
 }
 
 /* ═══════════════════════════════════════════
-   K-MEANS
+   LAB COLOR SPACE (CIELAB)
+   K-means uses ΔE in perceptual LAB space for
+   more uniform clusters on skin tones, gradients.
+═══════════════════════════════════════════ */
+function rgb2lab(r,g,b){
+  let R=r/255,G=g/255,B=b/255;
+  R=R>0.04045?Math.pow((R+0.055)/1.055,2.4):R/12.92;
+  G=G>0.04045?Math.pow((G+0.055)/1.055,2.4):G/12.92;
+  B=B>0.04045?Math.pow((B+0.055)/1.055,2.4):B/12.92;
+  let X=R*0.4124564+G*0.3575761+B*0.1804375;
+  let Y=R*0.2126729+G*0.7151522+B*0.0721750;
+  let Z=R*0.0193339+G*0.1191920+B*0.9503041;
+  X/=0.95047;Y/=1.00000;Z/=1.08883;
+  const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;
+  const fx=f(X),fy=f(Y),fz=f(Z);
+  return[116*fy-16,500*(fx-fy),200*(fy-fz)];
+}
+function lab2rgb(L,a,b){
+  const fy=(L+16)/116,fx=a/500+fy,fz=fy-b/200;
+  const g=t=>t>0.206897?t*t*t:(t-16/116)/7.787;
+  let X=0.95047*g(fx),Y=1.00000*g(fy),Z=1.08883*g(fz);
+  let R=X*3.2404542-Y*1.5371385-Z*0.4985314;
+  let G=-X*0.9692660+Y*1.8760108+Z*0.0415560;
+  let B=X*0.0556434-Y*0.2040259+Z*1.0572252;
+  const s=c=>{c=Math.max(0,Math.min(1,c));return c>0.0031308?1.055*Math.pow(c,1/2.4)-0.055:12.92*c;};
+  return[Math.round(s(R)*255),Math.round(s(G)*255),Math.round(s(B)*255)];
+}
+
+/* ═══════════════════════════════════════════
+   K-MEANS (in LAB space)
 ═══════════════════════════════════════════ */
 function kMeansPP(samples,k){
   const n=samples.length;
@@ -472,7 +543,7 @@ function kMeansPP(samples,k){
 async function runKMeans(imageData,k){
   const data=imageData.data,total=imageData.width*imageData.height;
   const pixels=new Array(total);
-  for(let i=0;i<total;i++)pixels[i]=[data[i*4],data[i*4+1],data[i*4+2]];
+  for(let i=0;i<total;i++)pixels[i]=rgb2lab(data[i*4],data[i*4+1],data[i*4+2]);
   const STEP=8,samples=[];
   for(let i=0;i<total;i+=STEP)samples.push(pixels[i]);
   setStatus('K-means…'); await sleep(10);
@@ -512,6 +583,77 @@ function buildMask(pixels,assignments,centroids,centroidIdx,threshold){
     mask[i]=ratio<=threshold?255:0;
   }
   return mask;
+}
+
+/* ═══════════════════════════════════════════
+   MORPHOLOGICAL OPENING (erode + dilate)
+   
+   Eliminates thin ink fragments and tiny ink blobs
+   before bridge processing, reducing spurious paper islands.
+   
+   Uses 1D box-filter separable approximation for O(n×r) speed:
+   - Erode:  pixel stays ink only if entire row+col window is ink
+   - Dilate: pixel becomes ink if any pixel in window is ink
+   Box filter is separable → two passes (H + V) instead of O(n×r²)
+═══════════════════════════════════════════ */
+function morphOpen(mask, w, h, r){
+  if(!r||r<=0) return mask;
+  const n=w*h;
+  // ── Erode ────────────────────────────────
+  // A pixel stays ink only if ALL pixels in [-r,+r] window are ink.
+  // Separable: horizontal pass then vertical pass.
+  const tmp1=new Uint8Array(n);
+  // Horizontal erode
+  for(let y=0;y<h;y++){
+    let count=0; // running count of ink pixels in window
+    // initialize window for x=0..r
+    for(let x=0;x<=Math.min(r,w-1);x++) if(mask[y*w+x]) count++;
+    for(let x=0;x<w;x++){
+      // right edge enters
+      const xr=x+r;if(xr<w&&mask[y*w+xr]) count++;
+      // left edge leaves
+      const xl=x-r-1;if(xl>=0&&mask[y*w+xl]) count--;
+      const win=Math.min(xr,w-1)-Math.max(0,x-r)+1;
+      tmp1[y*w+x]=(count===win)?255:0;
+    }
+  }
+  const tmp2=new Uint8Array(n);
+  // Vertical erode
+  for(let x=0;x<w;x++){
+    let count=0;
+    for(let y=0;y<=Math.min(r,h-1);y++) if(tmp1[y*w+x]) count++;
+    for(let y=0;y<h;y++){
+      const yr=y+r;if(yr<h&&tmp1[yr*w+x]) count++;
+      const yl=y-r-1;if(yl>=0&&tmp1[yl*w+x]) count--;
+      const win=Math.min(yr,h-1)-Math.max(0,y-r)+1;
+      tmp2[y*w+x]=(count===win)?255:0;
+    }
+  }
+  // ── Dilate ───────────────────────────────
+  // A pixel becomes ink if ANY pixel in [-r,+r] window is ink.
+  const tmp3=new Uint8Array(n);
+  // Horizontal dilate
+  for(let y=0;y<h;y++){
+    let count=0;
+    for(let x=0;x<=Math.min(r,w-1);x++) if(tmp2[y*w+x]) count++;
+    for(let x=0;x<w;x++){
+      const xr=x+r;if(xr<w&&tmp2[y*w+xr]) count++;
+      const xl=x-r-1;if(xl>=0&&tmp2[y*w+xl]) count--;
+      tmp3[y*w+x]=count>0?255:0;
+    }
+  }
+  const result=new Uint8Array(n);
+  // Vertical dilate
+  for(let x=0;x<w;x++){
+    let count=0;
+    for(let y=0;y<=Math.min(r,h-1);y++) if(tmp3[y*w+x]) count++;
+    for(let y=0;y<h;y++){
+      const yr=y+r;if(yr<h&&tmp3[yr*w+x]) count++;
+      const yl=y-r-1;if(yl>=0&&tmp3[yl*w+x]) count--;
+      result[y*w+x]=count>0?255:0;
+    }
+  }
+  return result;
 }
 
 /* ═══════════════════════════════════════════
@@ -727,10 +869,11 @@ function vectorizeMask(mask,w,h,simplify){
   const contours=[],pathDs=[];
   for(const loop of raw){
     if(loop.length<6)continue;
-    const s=rdp(loop,tol);
+    const smooth=chaikinLoop(loop,simplify<5?2:1);
+    const s=rdp(smooth,tol*0.6);
     if(s.length<3)continue;
     contours.push(s);
-    pathDs.push('M'+s.map(([x,y])=>x+' '+y).join('L')+'Z');
+    pathDs.push('M'+s.map(([x,y])=>x.toFixed(2)+' '+y.toFixed(2)).join('L')+'Z');
   }
   return{contours,pathDs};
 }
@@ -772,6 +915,21 @@ function traceContours(mask,w,h){
     }
   }
   return contours;
+}
+
+function chaikinLoop(pts,iters=2){
+  if(pts.length<=4)return pts;
+  let p=pts;
+  for(let k=0;k<iters;k++){
+    const q=[],n=p.length;
+    for(let i=0;i<n;i++){
+      const p0=p[i],p1=p[(i+1)%n];
+      q.push([0.75*p0[0]+0.25*p1[0],0.75*p0[1]+0.25*p1[1]]);
+      q.push([0.25*p0[0]+0.75*p1[0],0.25*p0[1]+0.75*p1[1]]);
+    }
+    p=q;
+  }
+  return p;
 }
 
 function rdp(pts,eps){
@@ -826,14 +984,80 @@ function buildDXF(contours,w,h,widthCm,heightCm){
   return['0','SECTION','2','HEADER','9','$ACADVER','1','AC1014','9','$INSUNITS','70','4','0','ENDSEC',
     '0','SECTION','2','ENTITIES',ents.trimEnd(),'0','ENDSEC','0','EOF'].join('\n');
 }
+/* ═══════════════════════════════════════════
+   HPGL BUILDER
+   Native format for vinyl cutters (Silhouette, Cricut, Roland)
+   Units: 1 HPGL unit = 0.025mm → 40 units/mm
+═══════════════════════════════════════════ */
+function buildHPGL(contours,w,h,widthCm,heightCm){
+  const wMM=widthCm*10,hMM=heightCm*10;
+  const sx=wMM/w,sy=hMM/h;
+  const U=40; // units per mm
+  const fy=py=>Math.round((hMM-py*sy)*U);
+  const fx=px=>Math.round(px*sx*U);
+  // Registration marks
+  const mMM=8,aMM=5;
+  const cors=[[mMM,mMM],[wMM-mMM,mMM],[mMM,hMM-mMM],[wMM-mMM,hMM-mMM]];
+  let out='IN;SP1;\n';
+  for(const[cx,cy]of cors){
+    const mx=Math.round(cx*U),my=Math.round(cy*U);
+    const ax=Math.round(aMM*U);
+    out+=`PU${mx-ax},${my};PD${mx+ax},${my};\n`;
+    out+=`PU${mx},${my-ax};PD${mx},${my+ax};\n`;
+  }
+  // Cut paths
+  for(const pts of contours){
+    if(pts.length<2)continue;
+    const[x0,y0]=pts[0];
+    out+=`PU${fx(x0)},${fy(y0)};\nPD`;
+    out+=pts.slice(1).map(([x,y])=>`${fx(x)},${fy(y)}`).join(',');
+    out+=`,${fx(x0)},${fy(y0)};\n`; // close path
+  }
+  out+='SP0;IN;\n';
+  return out;
+}
+
 function dline(l,x1,y1,x2,y2){return`0\nLINE\n8\n${l}\n10\n${f4(x1)}\n20\n${f4(y1)}\n30\n0.0\n11\n${f4(x2)}\n21\n${f4(y2)}\n31\n0.0\n`;}
+
+/* Inject pHYs chunk into PNG base64 for correct DPI metadata */
+function injectPNGDpi(b64,dpi){
+  if(!dpi||dpi<=0)return b64;
+  const ppm=Math.round(dpi*39.3701); // pixels per metre
+  // decode
+  const bin=atob(b64);
+  const buf=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);
+  // PNG sig(8) + IHDR(4len+4type+13data+4crc = 25) = 33 bytes before first data chunk
+  // Insert pHYs (4len+4type+4X+4Y+1unit+4crc = 21 bytes) at byte 33
+  const pHYs=new Uint8Array(21);
+  const dv=new DataView(pHYs.buffer);
+  dv.setUint32(0,9);      // data length = 9
+  pHYs[4]=0x70;pHYs[5]=0x48;pHYs[6]=0x59;pHYs[7]=0x73; // 'pHYs'
+  dv.setUint32(8,ppm);    // X pixels/unit
+  dv.setUint32(12,ppm);   // Y pixels/unit
+  pHYs[16]=1;             // unit = metre
+  // CRC32 over type+data (bytes 4..16)
+  const crc=crc32(pHYs,4,17);dv.setUint32(17,crc);
+  const result=new Uint8Array(buf.length+21);
+  result.set(buf.slice(0,33));result.set(pHYs,33);result.set(buf.slice(33),54);
+  // encode back
+  let s='';for(let i=0;i<result.length;i++)s+=String.fromCharCode(result[i]);
+  return btoa(s);
+}
+function crc32(buf,start,end){
+  let c=0xFFFFFFFF;
+  const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){let k=n;for(let j=0;j<8;j++)k=k&1?0xEDB88320^(k>>>1):k>>>1;t[n]=k;}
+  for(let i=start;i<end;i++)c=t[(c^buf[i])&0xFF]^(c>>>8);
+  return(c^0xFFFFFFFF)>>>0;
+}
 
 /* ═══════════════════════════════════════════
    PNG BUILDER
    B&W: ink=black, paper=white + crosshairs
    Returns base64 PNG string (no data: prefix)
 ═══════════════════════════════════════════ */
-function buildPNG(mask,w,h,widthCm,heightCm){
+function buildPNG(mask,w,h,widthCm,heightCm,dpi=300){
   const c=Object.assign(document.createElement('canvas'),{width:w,height:h});
   const ctx=c.getContext('2d');
   const idata=ctx.createImageData(w,h),px=idata.data;
@@ -856,7 +1080,8 @@ function buildPNG(mask,w,h,widthCm,heightCm){
   }
 
   // Return base64 without data:image/png;base64, prefix
-  return c.toDataURL('image/png').split(',')[1];
+  const raw=c.toDataURL('image/png').split(',')[1];
+  return injectPNGDpi(raw,dpi);
 }
 
 /* ═══════════════════════════════════════════
@@ -892,7 +1117,7 @@ function renderLayers(){
     item.className='layer-item'+(layer.visible===false?' hidden-layer':'');
     item.draggable=true;item.dataset.idx=idx;
 
-    const minV=layer.minIsle??50, maxV=layer.maxIsle??0;
+    const minV=layer.minIsle??50, maxV=layer.maxIsle??0, openV=layer.open??0;
     item.innerHTML=`
       <div class="layer-head">
         <span class="lh-handle" title="drag">⠿⠿</span>
@@ -900,6 +1125,7 @@ function renderLayers(){
         <div class="lh-swatch" style="background:${layer.color}">
           <input type="color" value="${layer.color}" data-li="${idx}">
         </div>
+        <canvas class="lh-thumb" id="lthumb${idx}"></canvas>
         <span class="lh-name">${layer.name}</span>
         <button class="lh-btn${layer.visible===false?'':' vis-on'}" data-li="${idx}" data-role="vis" title="visibility">${layer.visible===false?'○':'●'}</button>
         <button class="lh-btn" data-li="${idx}" data-role="up" ${idx===0?'disabled':''} title="move up">↑</button>
@@ -911,6 +1137,11 @@ function renderLayers(){
           <span class="thr-lbl">${T('threshold')}</span>
           <input type="range" min="0.2" max="2.5" step="0.05" value="${layer.threshold}" data-li="${idx}" data-role="thr" style="flex:1">
           <span class="thr-val" id="tv${idx}">${layer.threshold.toFixed(2)}</span>
+        </div>
+        <div class="thr-row">
+          <span class="thr-lbl" style="font-size:6px;letter-spacing:.5px;color:#e8a020">OPEN</span>
+          <input type="range" min="0" max="8" step="1" value="${openV}" data-li="${idx}" data-role="open" style="flex:1">
+          <span class="thr-val" id="ov${idx}" style="color:#e8a020">${openV===0?'OFF':openV+'px'}</span>
         </div>
         <div class="thr-row">
           <span class="thr-lbl" style="font-size:6px;letter-spacing:.5px;color:#777">MIN isle</span>
@@ -939,7 +1170,16 @@ function renderLayers(){
         if(role==='thr'){
           S.layers[li].threshold=val;
           $(`tv${li}`).textContent=val.toFixed(2);
-          S.masks[li]=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,S.layers[li].centroidIdx,val);
+          const raw=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,S.layers[li].centroidIdx,val);
+          S.masks[li]=morphOpen(raw,S.imgW,S.imgH,S.layers[li].open||0);
+          invalidateBeCache();
+          renderPreview();
+        } else if(role==='open'){
+          S.layers[li].open=val;
+          $(`ov${li}`).textContent=val===0?'OFF':val+'px';
+          const rawO=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,S.layers[li].centroidIdx,S.layers[li].threshold);
+          S.masks[li]=morphOpen(rawO,S.imgW,S.imgH,val);
+          invalidateBeCache();
           renderPreview();
         } else if(role==='min'){
           S.layers[li].minIsle=val;
@@ -998,6 +1238,22 @@ function renderLayers(){
     });
 
     list.appendChild(item);
+    // Render thumbnail
+    requestAnimationFrame(()=>{
+      const tc=$(`lthumb${idx}`);if(!tc)return;
+      tc.width=32;tc.height=32;
+      const mask=S.masks[idx];if(!mask)return;
+      const w=S.imgW,h=S.imgH,ctx=tc.getContext('2d');
+      const idata=ctx.createImageData(32,32),px=idata.data;
+      const sw=w/32,sh=h/32;
+      for(let ty=0;ty<32;ty++)for(let tx=0;tx<32;tx++){
+        const si=(Math.round(ty*sh)*w+Math.round(tx*sw));
+        const v=mask[si]>0?0:255;
+        const ti=(ty*32+tx)*4;
+        px[ti]=v;px[ti+1]=v;px[ti+2]=v;px[ti+3]=255;
+      }
+      ctx.putImageData(idata,0,0);
+    });
   });
 }
 
@@ -1047,14 +1303,17 @@ async function analyze(){
     S.kmPixels=result.pixels;S.kmAssign=result.assignments;S.kmCentroids=result.centroids;
     setProgress(70);await sleep(10);
     const order=result.centroids.map((c,i)=>({lum:luma(c),i})).sort((a,b)=>b.lum-a.lum).map(x=>x.i);
-    S.layers=order.map((ci,pos)=>({centroidIdx:ci,color:rgbToHex(...result.centroids[ci]),threshold:1.0,maxIsle:0,minIsle:50,visible:true,name:`${T('threshold')} ${pos+1}`}));
+    S.layers=order.map((ci,pos)=>({centroidIdx:ci,color:rgbToHex(...lab2rgb(...result.centroids[ci])),threshold:1.0,open:0,maxIsle:0,minIsle:50,visible:true,name:`${T('threshold')} ${pos+1}`}));
     S.bridgeOverrides=S.layers.map(()=>({skip:new Set(),force:new Set()}));
     S.islandDeletes=S.layers.map(()=>new Map());
     S.manualLines=S.layers.map(()=>[]);
     setProgress(80);await sleep(10);
-    S.masks=S.layers.map(l=>buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,1.0));
+    S.masks=S.layers.map(l=>{
+      const m=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,1.0);
+      return morphOpen(m,S.imgW,S.imgH,l.open||0);
+    });
     setProgress(95);await sleep(10);
-    renderLayers();renderPreview();
+    renderLayers();renderPreview();renderHistogram();
     $('btnExport').disabled=false;
     $('btnBridge').classList.add('ready');
     setStatus(`${k} ${currentLang==='eu'?'geruza':currentLang==='en'?'layers':'capas'}`,`${S.imgW}×${S.imgH}px`);
@@ -1104,7 +1363,19 @@ async function exportZip(){
     }
     if(fmts.includes('png')){
       setProgress(pct+14);setProgMsg(`${li+1}/${total} — PNG…`);await sleep(10);
-      zip.file(`${base}.png`,buildPNG(bridgedMask,w,h,widthCm,heightCm),{base64:true});
+      const dpi=parseInt($('pngDpi').value)||300;
+      zip.file(`${base}.png`,buildPNG(bridgedMask,w,h,widthCm,heightCm,dpi),{base64:true});
+    }
+    if(fmts.includes('hpgl')){
+      setProgress(pct+16);setProgMsg(`${li+1}/${total} — HPGL…`);await sleep(10);
+      if(!fmts.includes('svg')&&!fmts.includes('dxf')){
+        const{contours}=vectorizeMask(bridgedMask,w,h,simplify);
+        zip.file(`${base}.hpgl`,buildHPGL(contours,w,h,widthCm,heightCm));
+      } else {
+        // contours already computed
+        const{contours:hc}=vectorizeMask(bridgedMask,w,h,simplify);
+        zip.file(`${base}.hpgl`,buildHPGL(hc,w,h,widthCm,heightCm));
+      }
     }
   }
 
@@ -1150,6 +1421,177 @@ async function loadImageFile(file){
 /* ═══════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   SIMULATED STENCIL PREVIEW
+   Renders each layer as semi-transparent spray
+   on white paper: capa1 bottom, capaN top.
+═══════════════════════════════════════════ */
+let simActive=false;
+function renderSimPreview(){
+  const canvas=$('previewCanvas'),w=S.imgW,h=S.imgH;
+  canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d');
+  // White paper
+  ctx.fillStyle='#f5f5f0';ctx.fillRect(0,0,w,h);
+  // Each visible layer as semi-transparent colour
+  for(let li=0;li<S.layers.length;li++){
+    const layer=S.layers[li];
+    if(layer.visible===false)continue;
+    const rawMask=S.masks[li];if(!rawMask)continue;
+    const mask=applyIslandDeletes(rawMask,S.islandDeletes[li]);
+    const[r,g,b]=hexToRgb(layer.color);
+    const idata=ctx.createImageData(w,h),px=idata.data;
+    for(let i=0;i<w*h;i++){
+      if(mask[i]){px[i*4]=r;px[i*4+1]=g;px[i*4+2]=b;px[i*4+3]=180;}
+    }
+    ctx.putImageData(idata,0,0);
+    // Light spray blur effect via shadow
+    ctx.save();
+    ctx.globalAlpha=0.18;
+    ctx.filter='blur(1.5px)';
+    ctx.putImageData(idata,0,0);
+    ctx.restore();
+    ctx.filter='none';ctx.globalAlpha=1;
+  }
+  $('placeholder').style.display='none';canvas.style.display='block';
+  $('overlayCanvas').style.display='none';
+}
+
+/* ═══════════════════════════════════════════
+   LUMINANCE HISTOGRAM
+   Shows pixel distribution + K-means cut lines
+═══════════════════════════════════════════ */
+function renderHistogram(){
+  if(!S.imageData)return;
+  $('histWrap').style.display='block';
+  const c=$('histCanvas'),w=c.offsetWidth||180,h=44;
+  c.width=w;c.height=h;
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+  // Compute histogram (256 bins of luminance)
+  const bins=new Uint32Array(256);
+  const data=S.imageData.data,n=data.length/4;
+  for(let i=0;i<n;i++){
+    const l=Math.round(0.299*data[i*4]+0.587*data[i*4+1]+0.114*data[i*4+2]);
+    bins[l]++;
+  }
+  const peak=Math.max(...bins);
+  // Draw bars
+  ctx.fillStyle='#2a2a2a';ctx.fillRect(0,0,w,h);
+  for(let i=0;i<256;i++){
+    const bh=Math.round((bins[i]/peak)*(h-4));
+    const x=Math.round(i*w/256);
+    ctx.fillStyle='#444';
+    ctx.fillRect(x,h-bh,Math.max(1,Math.round(w/256)),bh);
+  }
+  // Draw K-means centroid lines if available
+  if(S.kmCentroids){
+    S.kmCentroids.forEach((c_,ci)=>{
+      // Convert LAB centroid to RGB luma
+      const[r,g,b]=lab2rgb(...c_);
+      const l=Math.round(0.299*r+0.587*g+0.114*b);
+      const x=Math.round(l*w/256);
+      const col=S.layers[ci]?S.layers[ci].color:'#fff';
+      ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.setLineDash([2,2]);
+      ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  }
+}
+
+/* ═══════════════════════════════════════════
+   PROJECT SAVE / LOAD (.stncl.json)
+═══════════════════════════════════════════ */
+function saveProject(){
+  if(!S.imageData)return;
+  // Serialize Sets/Maps
+  const serOv=S.bridgeOverrides.map(o=>({skip:[...o.skip],force:[...o.force]}));
+  const serDel=S.islandDeletes.map(m=>[...m.entries()].map(([k,v])=>({k,v:[...v]})));
+  const proj={
+    v:1,
+    imgW:S.imgW,imgH:S.imgH,
+    imageB64:(()=>{const c=document.createElement('canvas');c.width=S.imgW;c.height=S.imgH;c.getContext('2d').putImageData(S.imageData,0,0);return c.toDataURL()})(),
+    kmAssign:[...S.kmAssign],
+    kmCentroids:S.kmCentroids,
+    layers:S.layers.map(l=>({...l})),
+    bridgeOverrides:serOv,
+    islandDeletes:serDel,
+    manualLines:S.manualLines,
+  };
+  const blob=new Blob([JSON.stringify(proj)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='stncl_proyecto.stncl.json';a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function loadProject(file){
+  const text=await file.text();
+  let proj;try{proj=JSON.parse(text);}catch{setStatus('Error: JSON inválido');return;}
+  showProgress(true,'Cargando proyecto…');setProgress(20);await sleep(20);
+  // Restore image
+  const img=new Image();
+  await new Promise(res=>{img.onload=res;img.src=proj.imageB64;});
+  const c=Object.assign(document.createElement('canvas'),{width:proj.imgW,height:proj.imgH});
+  c.getContext('2d').drawImage(img,0,0);
+  S.imageData=c.getContext('2d').getImageData(0,0,proj.imgW,proj.imgH);
+  S.imgW=proj.imgW;S.imgH=proj.imgH;
+  // Restore K-means
+  S.kmAssign=new Int32Array(proj.kmAssign);
+  S.kmCentroids=proj.kmCentroids;
+  S.kmPixels=null; // will be recomputed if needed... actually rebuild
+  const data=S.imageData.data,total=proj.imgW*proj.imgH;
+  const pixels=new Array(total);
+  for(let i=0;i<total;i++)pixels[i]=rgb2lab(data[i*4],data[i*4+1],data[i*4+2]);
+  S.kmPixels=pixels;
+  setProgress(50);await sleep(10);
+  // Restore layers and masks
+  S.layers=proj.layers;
+  S.masks=S.layers.map(l=>{
+    const raw=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,l.threshold);
+    return morphOpen(raw,S.imgW,S.imgH,l.open||0);
+  });
+  // Restore overrides
+  S.bridgeOverrides=proj.bridgeOverrides.map(o=>({skip:new Set(o.skip),force:new Set(o.force)}));
+  S.islandDeletes=proj.islandDeletes.map(arr=>{const m=new Map();arr.forEach(({k,v})=>m.set(k,new Uint8Array(v)));return m;});
+  S.manualLines=proj.manualLines;
+  setProgress(80);await sleep(10);
+  renderLayers();renderPreview();renderHistogram();
+  $('btnExport').disabled=false;$('btnSave').disabled=false;$('btnBridge').classList.add('ready');
+  $('upFile').style.display='block';$('upFile').textContent='proyecto cargado';
+  setProgress(100);await sleep(300);showProgress(false);
+  setStatus('Proyecto cargado',`${proj.imgW}×${proj.imgH}px`);
+}
+
+/* ═══════════════════════════════════════════
+   UNDO HISTORY (Ctrl+Z)
+   Snapshots: bridgeOverrides, islandDeletes, manualLines
+═══════════════════════════════════════════ */
+const UH={stack:[],MAX:30};
+
+function cloneOverrides(ov){return{skip:new Set(ov.skip),force:new Set(ov.force)};}
+function cloneDelMap(m){const n=new Map();for(const[k,v]of m)n.set(k,v);return n;}
+
+function pushUndo(){
+  UH.stack.push({
+    ov:S.bridgeOverrides.map(o=>cloneOverrides(o)),
+    del:S.islandDeletes.map(m=>cloneDelMap(m)),
+    lines:S.manualLines.map(a=>a.map(l=>({...l}))),
+  });
+  if(UH.stack.length>UH.MAX)UH.stack.shift();
+  $('btnUndo').disabled=false;
+}
+
+function undo(){
+  if(!UH.stack.length)return;
+  const snap=UH.stack.pop();
+  S.bridgeOverrides=snap.ov;
+  S.islandDeletes=snap.del;
+  S.manualLines=snap.lines;
+  invalidateBeCache();
+  if(S.beData){renderBeBase();renderBridgeEditCanvas();}
+  renderPreview();
+  if(!UH.stack.length)$('btnUndo').disabled=true;
+}
+
 /* ═══════════════════════════════════════════
    ZOOM & PAN SYSTEM
 ═══════════════════════════════════════════ */
@@ -1567,6 +2009,44 @@ function beFindNearestLine(li,x,y){
   return bestI;
 }
 
+/* Touch events for bridge editor */
+(function initTouchEvents(){
+  const canvas=$('previewCanvas');
+  function touchPt(e){
+    const t=e.changedTouches[0];
+    return screenToImg(t.clientX,t.clientY);
+  }
+  canvas.addEventListener('touchstart',e=>{
+    if(!S.beData)return;
+    e.preventDefault();
+    const{x,y}=touchPt(e);
+    if(S.beData.tool==='island'){
+      const idx=beFindIsland(x,y);if(idx>=0)beToggleIsland(idx);
+    } else {
+      if(!S.beData.lineStart){
+        S.beData.lineStart={x,y};
+        $('beLineHint').textContent='2º toque: fin de línea';
+        renderBridgeEditCanvas({x,y});
+      }
+    }
+  },{passive:false});
+  canvas.addEventListener('touchmove',e=>{
+    if(!S.beData)return;e.preventDefault();
+    const{x,y}=touchPt(e);
+    if(S.beData.tool==='line'&&S.beData.lineStart)renderBridgeEditCanvas({x,y});
+  },{passive:false});
+  canvas.addEventListener('touchend',e=>{
+    if(!S.beData||S.beData.tool!=='line'||!S.beData.lineStart)return;
+    e.preventDefault();
+    const{x,y}=touchPt(e);
+    const li=S.beData.li;
+    const r=parseInt($('beSizeSlider').value)||6;
+    S.manualLines[li].push({x1:S.beData.lineStart.x,y1:S.beData.lineStart.y,x2:x,y2:y,r,erase:false});
+    S.beData.lineStart=null;$('beLineHint').textContent='1er toque: inicio';
+    invalidateBeCache();renderBridgeEditCanvas();
+  },{passive:false});
+})();
+
 (function initBridgeEditEvents(){
   const canvas=$('previewCanvas');
   let mousePos={x:0,y:0};
@@ -1598,7 +2078,7 @@ function beFindNearestLine(li,x,y){
     if(isErase){
       // In erase sub-mode: click removes nearest line
       const i=beFindNearestLine(li,x,y);
-      if(i>=0){S.manualLines[li].splice(i,1);invalidateBeCache();renderBridgeEditCanvas();}
+      if(i>=0){pushUndo();S.manualLines[li].splice(i,1);invalidateBeCache();renderBridgeEditCanvas();}
       return;
     }
 
@@ -1611,6 +2091,7 @@ function beFindNearestLine(li,x,y){
       // Second click: commit line
       const r=parseInt($('beSizeSlider').value)||6;
       S.manualLines[li].push({x1:S.beData.lineStart.x,y1:S.beData.lineStart.y,x2:x,y2:y,r,erase:false});
+      pushUndo();
       S.beData.lineStart=null;
       $('beLineHint').textContent='1er clic: inicio';
       invalidateBeCache();
@@ -1639,7 +2120,7 @@ function beFindNearestLine(li,x,y){
         renderBridgeEditCanvas();
       } else {
         const i=beFindNearestLine(li,x,y);
-        if(i>=0){S.manualLines[li].splice(i,1);invalidateBeCache();renderBridgeEditCanvas();}
+        if(i>=0){pushUndo();S.manualLines[li].splice(i,1);invalidateBeCache();renderBridgeEditCanvas();}
       }
     }
   });
@@ -1722,6 +2203,22 @@ function beFindNearestLine(li,x,y){
 
   // Buttons
   window.addEventListener('resize',()=>{if(S.imgW)vpFit();});
+  // Ctrl+Z undo
+  document.addEventListener('keydown',e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!e.shiftKey){e.preventDefault();undo();}
+  });
+  // Project save/load
+  $('btnSave').addEventListener('click',saveProject);
+  $('loadFile').addEventListener('change',e=>{if(e.target.files[0])loadProject(e.target.files[0]);e.target.value='';});
+  $('btnUndo').addEventListener('click',undo);
+  // Sim preview
+  $('btnSim').addEventListener('click',()=>{
+    simActive=!simActive;
+    $('btnSim').classList.toggle('on',simActive);
+    if(simActive)renderSimPreview();else renderPreview();
+  });
+  // DPI slider
+  $('pngDpi').addEventListener('input',e=>{$('dpiVal').textContent=e.target.value;});
   $('btnAnalyze').addEventListener('click',analyze);
   $('btnExport').addEventListener('click',exportZip);
   $('btnBridge').addEventListener('click',()=>{if($('btnBridge').classList.contains('ready'))previewBridges();});
