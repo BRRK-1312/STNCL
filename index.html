@@ -82,11 +82,26 @@ select:focus,input[type=number]:focus{border-color:var(--accent)}
 
 /* ── CENTER ── */
 .p-center{display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
-.preview-area{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
-.ph{text-align:center}
+.preview-area{flex:1;overflow:hidden;position:relative;cursor:default}
+/* zoom viewport inside preview-area */
+.zoom-vp{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+.ph{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;z-index:2}
 .ph-icon{font-size:72px;opacity:.04;display:block;margin-bottom:14px}
 .ph-text{font-size:8px;letter-spacing:4px;color:#363636;text-transform:uppercase}
-#previewCanvas{max-width:100%;max-height:100%;display:none;box-shadow:0 0 60px rgba(0,0,0,.9)}
+/* canvases inside zoom-vp */
+#previewCanvas{display:none;box-shadow:0 0 60px rgba(0,0,0,.9);image-rendering:pixelated}
+#overlayCanvas{position:absolute;top:0;left:0;pointer-events:none;display:none}
+/* zoom controls */
+.zoom-controls{position:absolute;bottom:10px;right:10px;display:flex;align-items:center;
+  gap:4px;z-index:5;background:rgba(6,6,6,.85);border:1px solid var(--border);padding:4px 7px}
+.zoom-btn{background:transparent;border:1px solid var(--border);color:var(--muted);
+  font-family:var(--font-m);font-size:10px;cursor:pointer;padding:2px 6px;
+  transition:all .12s;line-height:1.4}
+.zoom-btn:hover{border-color:#555;color:var(--text)}
+.zoom-lbl{font-family:var(--font-m);font-size:8px;color:var(--muted);letter-spacing:1px;min-width:34px;text-align:center}
+/* pan cursor */
+.preview-area.panning{cursor:grabbing}
+.preview-area.can-pan{cursor:grab}
 .statusbar{border-top:1px solid var(--border);padding:5px 14px;display:flex;
   justify-content:space-between;align-items:center;font-size:9px;color:var(--muted);flex-shrink:0;background:var(--panel)}
 .s-msg{color:var(--accent);letter-spacing:1px}
@@ -247,12 +262,24 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
   </aside>
 
   <section class="p-center">
-    <div class="preview-area" id="previewArea" style="position:relative">
+    <div class="preview-area" id="previewArea">
       <div class="ph" id="placeholder">
         <span class="ph-icon">⬡</span>
         <div class="ph-text" data-t="ph_text">carga una imagen para empezar</div>
       </div>
-      <canvas id="previewCanvas"></canvas>
+      <!-- zoom viewport -->
+      <div class="zoom-vp" id="zoomVp">
+        <canvas id="previewCanvas"></canvas>
+        <canvas id="overlayCanvas"></canvas>
+      </div>
+      <!-- zoom controls -->
+      <div class="zoom-controls" id="zoomControls" style="display:none">
+        <button class="zoom-btn" id="zoomOut">−</button>
+        <span class="zoom-lbl" id="zoomLbl">100%</span>
+        <button class="zoom-btn" id="zoomIn">+</button>
+        <button class="zoom-btn" id="zoomFit" title="fit">⊡</button>
+        <button class="zoom-btn" id="zoom1x" title="1:1">1:1</button>
+      </div>
       <div class="be-toolbar" id="beToolbar">
         <span class="be-title" id="beTitle">CAPA 1</span>
         <!-- mode toggles -->
@@ -265,6 +292,7 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
           <span class="be-hint"><span style="color:#6699ff">●</span> <span style="color:#999">auto</span></span>
           <span class="be-hint"><span style="color:#ff4444">✕</span> <span style="color:#999">sin puente</span></span>
           <span class="be-hint"><span style="color:#44ff88">+</span> <span style="color:#999">forzar</span></span>
+          <span class="be-hint"><span style="color:#ff8800">⊗</span> <span style="color:#999">eliminar</span></span>
         </span>
         <!-- line mode controls -->
         <span id="beLineControls">
@@ -398,7 +426,10 @@ const S = {
   kmPixels:null, kmAssign:null, kmCentroids:null,
   layers:[], masks:[],
   bridgeOverrides:[], // per layer: {skip:Set<sid>, force:Set<sid>}
+  islandDeletes:[],   // per layer: Map<sid, int[]>  (pixels to fill w/ ink)
   manualLines:[],     // per layer: [{x1,y1,x2,y2,r}]  (drawn lines)
+  beCache:null,       // {li, autoMask} — invalidated on param change
+  vp:{zoom:1,panX:0,panY:0}, // viewport state
   beData:null         // active bridge edit state + {tool,lineStart}
 };
 
@@ -648,6 +679,16 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
   return result;
 }
 
+/* Fill deleted islands with ink (255) before bridge processing */
+function applyIslandDeletes(mask, deletesMap){
+  if(!deletesMap||!deletesMap.size) return mask;
+  const result=new Uint8Array(mask);
+  for(const pixels of deletesMap.values()){
+    for(const idx of pixels) result[idx]=255;
+  }
+  return result;
+}
+
 /* Rasterise manual drawn/erased lines onto a mask copy */
 function applyManualLines(mask,w,h,origMask,lines){
   if(!lines||!lines.length)return mask;
@@ -828,12 +869,15 @@ function renderPreview(){
   for(let i=0;i<w*h;i++){px[i*4]=230;px[i*4+1]=230;px[i*4+2]=230;px[i*4+3]=255;}
   for(let li=0;li<S.layers.length;li++){
     if(S.layers[li].visible===false)continue;
-    const mask=S.masks[li];if(!mask)continue;
+    const rawMask=S.masks[li];if(!rawMask)continue;
+    const mask=applyIslandDeletes(rawMask,S.islandDeletes[li]);
     const[r,g,b]=hexToRgb(S.layers[li].color);
     for(let i=0;i<w*h;i++){if(mask[i]){px[i*4]=r;px[i*4+1]=g;px[i*4+2]=b;px[i*4+3]=255;}}
   }
   ctx.putImageData(idata,0,0);
   $('placeholder').style.display='none';canvas.style.display='block';
+  $('zoomControls').style.display='flex';
+  vpFit();
 }
 
 /* ═══════════════════════════════════════════
@@ -972,8 +1016,10 @@ async function previewBridges(){
   const bridgedMasks=S.masks.map((m,li)=>{
     setProgMsg(`${li+1}/${S.masks.length}…`);
     const minI=S.layers[li].minIsle??globalMinIsle;
-    const auto=addBridges(m,w,h,bridgePx,minI,S.layers[li].maxIsle||0,getLayerOverrides(li));
-    return applyManualLines(auto,w,h,S.masks[li],S.manualLines[li]||[]);
+    const delMap=S.islandDeletes[li]||new Map();
+    const baseMask=applyIslandDeletes(m,delMap);
+    const auto=addBridges(baseMask,w,h,bridgePx,minI,S.layers[li].maxIsle||0,getLayerOverrides(li));
+    return applyManualLines(auto,w,h,baseMask,S.manualLines[li]||[]);
   });
   setProgress(80);await sleep(10);
   const canvas=$('previewCanvas'),ctx=canvas.getContext('2d');
@@ -1003,6 +1049,7 @@ async function analyze(){
     const order=result.centroids.map((c,i)=>({lum:luma(c),i})).sort((a,b)=>b.lum-a.lum).map(x=>x.i);
     S.layers=order.map((ci,pos)=>({centroidIdx:ci,color:rgbToHex(...result.centroids[ci]),threshold:1.0,maxIsle:0,minIsle:50,visible:true,name:`${T('threshold')} ${pos+1}`}));
     S.bridgeOverrides=S.layers.map(()=>({skip:new Set(),force:new Set()}));
+    S.islandDeletes=S.layers.map(()=>new Map());
     S.manualLines=S.layers.map(()=>[]);
     setProgress(80);await sleep(10);
     S.masks=S.layers.map(l=>buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,1.0));
@@ -1040,8 +1087,10 @@ async function exportZip(){
     setProgress(pct);setProgMsg(`${li+1}/${total} — bridges…`);await sleep(20);
 
     const minI=layer.minIsle??globalMinIsle;
-    const autoMask=addBridges(S.masks[li],w,h,bridgePx,minI,layer.maxIsle||0,getLayerOverrides(li));
-    const bridgedMask=applyManualLines(autoMask,w,h,S.masks[li],S.manualLines[li]||[]);
+    const delMap=S.islandDeletes[li]||new Map();
+    const baseMask=applyIslandDeletes(S.masks[li],delMap);
+    const autoMask=addBridges(baseMask,w,h,bridgePx,minI,layer.maxIsle||0,getLayerOverrides(li));
+    const bridgedMask=applyManualLines(autoMask,w,h,baseMask,S.manualLines[li]||[]);
 
     const num=String(li+1).padStart(2,'0');
     const col=layer.color.replace('#','');
@@ -1102,6 +1151,99 @@ async function loadImageFile(file){
    INIT
 ═══════════════════════════════════════════ */
 /* ═══════════════════════════════════════════
+   ZOOM & PAN SYSTEM
+═══════════════════════════════════════════ */
+const ZOOM_MIN=0.15, ZOOM_MAX=12;
+
+function vpApply(){
+  const{zoom,panX,panY}=S.vp;
+  $('zoomVp').style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;
+  $('zoomLbl').textContent=Math.round(zoom*100)+'%';
+}
+
+function vpFit(){
+  if(!S.imgW||!S.imgH)return;
+  const area=$('previewArea');
+  const aw=area.clientWidth,ah=area.clientHeight;
+  const scale=Math.min(aw/S.imgW,ah/S.imgH)*0.95;
+  S.vp.zoom=scale;
+  S.vp.panX=(aw-S.imgW*scale)/2;
+  S.vp.panY=(ah-S.imgH*scale)/2;
+  vpApply();
+}
+
+function vpZoomAt(screenX,screenY,delta){
+  const area=$('previewArea').getBoundingClientRect();
+  const ax=screenX-area.left, ay=screenY-area.top;
+  const oldZ=S.vp.zoom;
+  const newZ=Math.max(ZOOM_MIN,Math.min(ZOOM_MAX,oldZ*delta));
+  // Keep point under cursor stationary
+  S.vp.panX=ax-(ax-S.vp.panX)*(newZ/oldZ);
+  S.vp.panY=ay-(ay-S.vp.panY)*(newZ/oldZ);
+  S.vp.zoom=newZ;
+  vpApply();
+}
+
+/* Screen → image pixel coordinates (accounting for zoom/pan) */
+function screenToImg(screenX,screenY){
+  const area=$('previewArea').getBoundingClientRect();
+  return{
+    x:Math.round((screenX-area.left-S.vp.panX)/S.vp.zoom),
+    y:Math.round((screenY-area.top -S.vp.panY)/S.vp.zoom)
+  };
+}
+
+/* Old canvasToImg shim — now delegates to screenToImg */
+function canvasToImg(_canvas,cx,cy){return screenToImg(cx,cy);}
+
+(function initZoomEvents(){
+  const area=$('previewArea');
+  // Mouse wheel → zoom
+  area.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const delta=e.deltaY<0?1.12:1/1.12;
+    vpZoomAt(e.clientX,e.clientY,delta);
+  },{passive:false});
+
+  // Middle mouse / space+drag → pan
+  let panStart=null;
+  let spaceDown=false;
+  document.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){spaceDown=true;if($('previewCanvas').style.display!=='none')area.classList.add('can-pan');}});
+  document.addEventListener('keyup',e=>{if(e.code==='Space'){spaceDown=false;area.classList.remove('can-pan','panning');}});
+
+  area.addEventListener('mousedown',e=>{
+    if(e.button===1||(e.button===0&&spaceDown)){
+      e.preventDefault();
+      panStart={x:e.clientX-S.vp.panX,y:e.clientY-S.vp.panY};
+      area.classList.add('panning');area.classList.remove('can-pan');
+    }
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!panStart)return;
+    S.vp.panX=e.clientX-panStart.x;
+    S.vp.panY=e.clientY-panStart.y;
+    vpApply();
+  });
+  window.addEventListener('mouseup',e=>{
+    if(panStart){panStart=null;area.classList.remove('panning');if(spaceDown)area.classList.add('can-pan');}
+  });
+
+  // Zoom buttons
+  $('zoomIn') .addEventListener('click',()=>vpZoomAt(window.innerWidth/2,window.innerHeight/2,1.25));
+  $('zoomOut').addEventListener('click',()=>vpZoomAt(window.innerWidth/2,window.innerHeight/2,1/1.25));
+  $('zoomFit').addEventListener('click',vpFit);
+  $('zoom1x') .addEventListener('click',()=>{
+    const area=$('previewArea').getBoundingClientRect();
+    S.vp.zoom=1;S.vp.panX=(area.width-S.imgW)/2;S.vp.panY=(area.height-S.imgH)/2;vpApply();
+  });
+  // Double click: toggle fit / 1:1
+  area.addEventListener('dblclick',e=>{
+    if(S.beData)return; // don't interfere with bridge edit
+    if(Math.abs(S.vp.zoom-1)<0.05)vpFit();else{S.vp.zoom=1;const r=$('previewArea').getBoundingClientRect();S.vp.panX=(r.width-S.imgW)/2;S.vp.panY=(r.height-S.imgH)/2;vpApply();}
+  });
+})();
+
+/* ═══════════════════════════════════════════
    BRIDGE EDIT MODE v2 — Island-level click toggle
    
    Interaction: click any island → cycles state
@@ -1160,41 +1302,76 @@ function computeLayerIslands(li){
   return{islands,islandOf,centroids,w,h,li};
 }
 
-function getBeLayerMask(){
-  if(!S.beData)return null;
-  const{li}=S.beData;
+/* Invalidate bridge cache (call when params affecting bridges change) */
+function invalidateBeCache(){S.beCache=null;}
+
+function getBeAutoMask(li){
+  // Returns cached auto-bridge+delete mask (expensive: addBridges)
+  if(S.beCache&&S.beCache.li===li) return S.beCache;
   const widthCm=parseFloat($('outW').value)||30;
   const bridgeMM=parseFloat($('bridgeWidth').value);
   const w=S.imgW,h=S.imgH;
   const bridgePx=Math.max(1,Math.round(bridgeMM*w/(widthCm*10)));
   const globalMinIsle=parseInt($('minIsleSize').value)||50;
   const minI=S.layers[li].minIsle??globalMinIsle;
-  return addBridges(S.masks[li],w,h,bridgePx,minI,S.layers[li].maxIsle||0,getLayerOverrides(li));
+  const delMap=S.islandDeletes[li]||new Map();
+  const baseMask=applyIslandDeletes(S.masks[li],delMap);
+  const autoMask=addBridges(baseMask,w,h,bridgePx,minI,S.layers[li].maxIsle||0,getLayerOverrides(li));
+  S.beCache={li,autoMask,baseMask};
+  return S.beCache;
+}
+
+function getBeLayerMask(){
+  if(!S.beData)return null;
+  const{li}=S.beData;
+  const{autoMask,baseMask}=getBeAutoMask(li);
+  return applyManualLines(autoMask,S.imgW,S.imgH,baseMask,S.manualLines[li]||[]);
+}
+
+function renderBeBase(){
+  // Render B&W stencil onto previewCanvas — only call when mask changes
+  if(!S.beData)return;
+  const{li}=S.beData;
+  const mask=getBeLayerMask();
+  const w=S.imgW,h=S.imgH;
+  const canvas=$('previewCanvas');
+  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+  const ctx=canvas.getContext('2d');
+  const idata=ctx.createImageData(w,h),px=idata.data;
+  for(let i=0;i<w*h;i++){const v=mask[i]>0?0:255;px[i*4]=v;px[i*4+1]=v;px[i*4+2]=v;px[i*4+3]=255;}
+  ctx.putImageData(idata,0,0);
 }
 
 function renderBridgeEditCanvas(previewLine=null){
   if(!S.beData)return;
   const{islands,centroids,li,tool}=S.beData;
   const ov=getLayerOverrides(li);
-  const mask=getBeLayerMask();
   const w=S.imgW,h=S.imgH;
-  const canvas=$('previewCanvas');
-  canvas.width=w;canvas.height=h;
-  const ctx=canvas.getContext('2d');
 
-  // B&W base
-  const idata=ctx.createImageData(w,h),px=idata.data;
-  for(let i=0;i<w*h;i++){const v=mask[i]>0?0:255;px[i*4]=v;px[i*4+1]=v;px[i*4+2]=v;px[i*4+3]=255;}
-  ctx.putImageData(idata,0,0);
+  // Overlay canvas for markers (never re-rasterizes the full B&W)
+  const overlay=$('overlayCanvas');
+  if(overlay.width!==w||overlay.height!==h){overlay.width=w;overlay.height=h;}
+  const ctx=overlay.getContext('2d');
+  ctx.clearRect(0,0,w,h);
 
   if(tool==='island'){
     // Draw island markers at centroids
     islands.forEach(({sid},idx)=>{
       const[cx,cy]=centroids[idx];
-      const skip=ov.skip.has(sid),force=ov.force.has(sid);
+      const delMap=S.islandDeletes[li]||new Map();
+      const del=delMap.has(sid),skip=!del&&ov.skip.has(sid),force=!del&&ov.force.has(sid);
       const r=Math.max(5,Math.min(10,4+Math.log2(islands[idx].isle.length||1)));
       ctx.save();
-      if(skip){
+      if(del){
+        // Orange hatched = island deleted (filled with ink)
+        ctx.fillStyle='rgba(255,120,0,0.88)';
+        ctx.strokeStyle='#fff';ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+        ctx.strokeStyle='#fff';ctx.lineWidth=1.8;
+        // ⊗ symbol: circle with X
+        ctx.beginPath();ctx.moveTo(cx-r*.6,cy-r*.6);ctx.lineTo(cx+r*.6,cy+r*.6);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(cx+r*.6,cy-r*.6);ctx.lineTo(cx-r*.6,cy+r*.6);ctx.stroke();
+      } else if(skip){
         ctx.fillStyle='rgba(255,60,60,0.92)';
         ctx.strokeStyle='#fff';ctx.lineWidth=1.2;
         ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.stroke();
@@ -1214,8 +1391,8 @@ function renderBridgeEditCanvas(previewLine=null){
       }
       ctx.restore();
     });
-    const nSkip=ov.skip.size,nForce=ov.force.size;
-    $('beCount').textContent=`${islands.length} islas`+(nSkip?` · ✕${nSkip}`:'')+(nForce?` · +${nForce}`:'');
+    const nSkip=ov.skip.size,nForce=ov.force.size,nDel=(S.islandDeletes[li]||new Map()).size;
+    $('beCount').textContent=`${islands.length} islas`+(nSkip?` · ✕${nSkip}`:'')+(nForce?` · +${nForce}`:'')+(nDel?` · ⊗${nDel}`:'');
 
   } else {
     // LINE TOOL: draw overlays for committed lines + live preview
@@ -1294,16 +1471,30 @@ function beFindIsland(imgX,imgY){
 function beToggleIsland(isleIdx){
   if(!S.beData||isleIdx<0)return;
   const{li,islands}=S.beData;
-  const sid=islands[isleIdx].sid;
+  const{sid,isle}=islands[isleIdx];
   const ov=getLayerOverrides(li);
-  if(ov.force.has(sid)){
-    ov.force.delete(sid); // force → auto
+  const delMap=S.islandDeletes[li]||(S.islandDeletes[li]=new Map());
+
+  if(delMap.has(sid)){
+    // delete → auto
+    delMap.delete(sid);
+    ov.skip.delete(sid);ov.force.delete(sid);
+  } else if(ov.force.has(sid)){
+    // force → delete: fill island with ink
+    ov.force.delete(sid);ov.skip.delete(sid);
+    delMap.set(sid,isle);
   } else if(ov.skip.has(sid)){
-    ov.skip.delete(sid);ov.force.add(sid); // skip → force
+    // skip → force
+    ov.skip.delete(sid);ov.force.add(sid);
   } else {
-    ov.skip.add(sid); // auto → skip
+    // auto → skip
+    ov.skip.add(sid);
   }
+  invalidateBeCache();
+  renderBeBase();
   renderBridgeEditCanvas();
+  // Deleted islands change the base mask → update normal preview too
+  if(delMap.has(sid)||!delMap.size) renderPreview();
 }
 
 /* Set active tool mode and update toolbar UI */
@@ -1337,6 +1528,7 @@ function beSetTool(tool){
 
 function enterBridgeEdit(li){
   if(S.beData)exitBridgeEdit(false);
+  invalidateBeCache();
   S.beData={...computeLayerIslands(li), tool:'island', lineStart:null, lineTool:'draw'};
   if(!S.bridgeOverrides[li])S.bridgeOverrides[li]={skip:new Set(),force:new Set()};
   if(!S.manualLines[li])S.manualLines[li]=[];
@@ -1344,14 +1536,18 @@ function enterBridgeEdit(li){
   $('beToolbar').classList.add('on');
   $('placeholder').style.display='none';
   $('previewCanvas').style.display='block';
+  $('overlayCanvas').style.display='block';
+  renderBeBase();
   beSetTool('island');
   renderLayers();
 }
 
 function exitBridgeEdit(rerender=true){
   S.beData=null;
+  invalidateBeCache();
   $('beToolbar').classList.remove('on');
   $('previewCanvas').className='';
+  $('overlayCanvas').style.display='none';
   if(rerender){renderLayers();renderPreview();}
   setStatus('—');
 }
@@ -1375,19 +1571,20 @@ function beFindNearestLine(li,x,y){
   const canvas=$('previewCanvas');
   let mousePos={x:0,y:0};
 
+  let rafPending=false;
   canvas.addEventListener('mousemove',e=>{
     if(!S.beData)return;
-    const{x,y}=canvasToImg(canvas,e.clientX,e.clientY);
-    mousePos={x,y};
-    // Live preview only in line tool with start set
-    if(S.beData.tool==='line'&&S.beData.lineStart){
-      renderBridgeEditCanvas({x,y});
+    const pos=screenToImg(e.clientX,e.clientY);
+    mousePos=pos;
+    if(S.beData.tool==='line'&&S.beData.lineStart&&!rafPending){
+      rafPending=true;
+      requestAnimationFrame(()=>{rafPending=false;renderBridgeEditCanvas(mousePos);});
     }
   });
 
   canvas.addEventListener('click',e=>{
     if(!S.beData)return;
-    const{x,y}=canvasToImg(canvas,e.clientX,e.clientY);
+    const{x,y}=screenToImg(e.clientX,e.clientY);
     const{tool,li}=S.beData;
 
     if(tool==='island'){
@@ -1401,7 +1598,7 @@ function beFindNearestLine(li,x,y){
     if(isErase){
       // In erase sub-mode: click removes nearest line
       const i=beFindNearestLine(li,x,y);
-      if(i>=0){S.manualLines[li].splice(i,1);renderBridgeEditCanvas();}
+      if(i>=0){S.manualLines[li].splice(i,1);invalidateBeCache();renderBridgeEditCanvas();}
       return;
     }
 
@@ -1416,6 +1613,7 @@ function beFindNearestLine(li,x,y){
       S.manualLines[li].push({x1:S.beData.lineStart.x,y1:S.beData.lineStart.y,x2:x,y2:y,r,erase:false});
       S.beData.lineStart=null;
       $('beLineHint').textContent='1er clic: inicio';
+      invalidateBeCache();
       renderBridgeEditCanvas();
     }
   });
@@ -1423,7 +1621,7 @@ function beFindNearestLine(li,x,y){
   canvas.addEventListener('contextmenu',e=>{
     e.preventDefault();
     if(!S.beData)return;
-    const{x,y}=canvasToImg(canvas,e.clientX,e.clientY);
+    const{x,y}=screenToImg(e.clientX,e.clientY);
     const{tool,li}=S.beData;
     if(tool==='island'){
       // Reset island to auto
@@ -1441,7 +1639,7 @@ function beFindNearestLine(li,x,y){
         renderBridgeEditCanvas();
       } else {
         const i=beFindNearestLine(li,x,y);
-        if(i>=0){S.manualLines[li].splice(i,1);renderBridgeEditCanvas();}
+        if(i>=0){S.manualLines[li].splice(i,1);invalidateBeCache();renderBridgeEditCanvas();}
       }
     }
   });
@@ -1479,10 +1677,12 @@ function beFindNearestLine(li,x,y){
     if(!S.beData)return;
     const{li}=S.beData;
     S.bridgeOverrides[li]={skip:new Set(),force:new Set()};
+    S.islandDeletes[li]=new Map();
     S.manualLines[li]=[];
     S.beData.lineStart=null;
     if(S.beData.tool==='line')$('beLineHint').textContent='1er clic: inicio';
     renderBridgeEditCanvas();
+    renderPreview();
   });
 
   $('beDoneBtn').addEventListener('click',()=>exitBridgeEdit());
@@ -1521,6 +1721,7 @@ function beFindNearestLine(li,x,y){
   });
 
   // Buttons
+  window.addEventListener('resize',()=>{if(S.imgW)vpFit();});
   $('btnAnalyze').addEventListener('click',analyze);
   $('btnExport').addEventListener('click',exportZip);
   $('btnBridge').addEventListener('click',()=>{if($('btnBridge').classList.contains('ready'))previewBridges();});
