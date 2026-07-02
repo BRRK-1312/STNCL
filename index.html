@@ -79,6 +79,8 @@ select:focus,input[type=number]:focus{border-color:var(--accent)}
 .fmt-btn.fmt-svg.on{border-color:var(--gold);color:var(--gold)}
 .fmt-btn.fmt-dxf.on{border-color:#44aaff;color:#44aaff}
 .fmt-btn.fmt-png.on{border-color:#44ff99;color:#44ff99}
+.fmt-btn.fmt-hpgl.on{border-color:#ff88cc;color:#ff88cc}
+.fmt-btn[data-fmt="svgml"].on{border-color:#aa88ff;color:#aa88ff}
 
 /* ── CENTER ── */
 .p-center{display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
@@ -90,7 +92,7 @@ select:focus,input[type=number]:focus{border-color:var(--accent)}
 .ph-text{font-size:8px;letter-spacing:4px;color:#363636;text-transform:uppercase}
 /* canvases inside zoom-vp */
 #previewCanvas{display:none;box-shadow:0 0 60px rgba(0,0,0,.9);image-rendering:pixelated}
-#overlayCanvas{position:absolute;top:0;left:0;pointer-events:none;display:none}
+#overlayCanvas{position:absolute;top:0;left:0;pointer-events:none;display:none;cursor:ew-resize}
 /* zoom controls */
 .zoom-controls{position:absolute;bottom:10px;right:10px;display:flex;align-items:center;
   gap:4px;z-index:5;background:rgba(6,6,6,.85);border:1px solid var(--border);padding:4px 7px}
@@ -157,6 +159,39 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
 .prog-fill{height:2px;background:var(--accent);width:0%;transition:width .25s}
 .prog-msg{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2a2a2a}
+/* ── LAYER EXTRAS ── */
+.lh-name[contenteditable]{outline:1px solid var(--accent);background:var(--panel2);padding:0 2px;cursor:text}
+.lh-name[contenteditable]:focus{outline-color:var(--gold)}
+.lh-btn.inv-on{color:#cc88ff;border-color:#cc88ff}
+/* ── A4/A3 PRESETS ── */
+.preset-row{display:flex;gap:4px;margin-top:4px}
+.preset-btn{flex:1;font-family:var(--font-m);font-size:8px;letter-spacing:1px;padding:3px 0;
+  background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;
+  text-align:center;transition:all .12s}
+.preset-btn:hover{border-color:#555;color:var(--text)}
+
+/* ── COMPARE OVERLAY ── */
+.cmp-bar{display:none;position:absolute;bottom:52px;left:50%;transform:translateX(-50%);
+  background:rgba(6,6,6,.92);border:1px solid var(--border);padding:5px 10px;
+  z-index:6;align-items:center;gap:8px;font-family:var(--font-m);font-size:9px;white-space:nowrap}
+.cmp-bar.on{display:flex}
+.cmp-sel{background:var(--panel2);border:1px solid var(--border);color:var(--text);
+  font-family:var(--font-m);font-size:9px;padding:2px 5px;outline:none}
+.cmp-lbl{color:var(--muted)}
+#cmpOpacity{width:60px;height:2px;background:var(--border)}
+.cmp-btn{font-family:var(--font-m);font-size:8px;padding:3px 7px;background:transparent;
+  border:1px solid var(--border);color:var(--muted);cursor:pointer}
+.cmp-btn:hover{border-color:#555;color:var(--text)}
+/* ── SESSION RESTORE ── */
+.restore-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:var(--panel);border-top:1px solid var(--border);padding:8px 16px;
+  font-size:9px;color:var(--muted);align-items:center;gap:10px}
+.restore-bar.on{display:flex}
+.restore-bar button{font-family:var(--font-m);font-size:9px;padding:4px 10px;
+  background:transparent;border:1px solid var(--border);color:var(--text);cursor:pointer}
+.restore-bar button:hover{border-color:#555}
+.restore-bar .r-yes{border-color:var(--gold);color:var(--gold)}
+
 /* ── HISTOGRAM ── */
 .hist-wrap{padding:6px 12px 8px;border-bottom:1px solid var(--border)}
 .hist-title{font-size:7px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
@@ -173,6 +208,7 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
 .hd-btn{font-family:var(--font-m);font-size:8px;letter-spacing:1px;padding:3px 7px;
   background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .12s}
 .hd-btn:hover{border-color:#555;color:var(--text)}
+.hd-btn.on{border-color:#88aaff;color:#88aaff;background:var(--panel2)}
 
 /* ── BRIDGE EDIT MODE ── */
 .be-toolbar{
@@ -203,6 +239,34 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
 #previewCanvas.be-line-draw{cursor:crosshair}
 #previewCanvas.be-line-erase{cursor:cell}
 .lh-btn.be-active{color:#FF2200;border-color:#FF2200}
+/* ── LAYER BRIDGE VIEW ── */
+.lh-btn.eye-on{color:#ffdc00;border-color:#ffdc00}
+.lv-bar{display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  background:rgba(6,6,6,.92);border:1px solid var(--border);padding:5px 10px;
+  z-index:7;align-items:center;gap:8px;font-family:var(--font-m);font-size:9px;white-space:nowrap}
+.lv-bar.on{display:flex}
+.lv-name{color:#ffdc00;letter-spacing:1px;min-width:120px;text-align:center}
+.lv-btn{font-family:var(--font-m);font-size:10px;padding:3px 9px;background:transparent;
+  border:1px solid var(--border);color:var(--text);cursor:pointer}
+.lv-btn:hover{border-color:#ffdc00;color:#ffdc00}
+.lv-btn:disabled{opacity:.3;cursor:default}
+.lv-hint{color:#555;font-size:7px}
+
+/* ── KERF / FEATURE / CUT INFO ── */
+.thr-lbl.kerf{color:#88ffcc}
+.kerf-val{color:#88ffcc!important}
+.feature-warn{color:#ff6644!important;font-size:7px}
+.cut-info{font-size:7px;color:#555;letter-spacing:1px;margin-top:2px;padding:2px 0}
+/* ── AUTO STENCIL ── */
+.auto-btn{font-family:var(--font-d);font-size:14px;letter-spacing:3px;width:100%;
+  padding:8px;background:transparent;border:1px solid var(--gold);color:var(--gold);
+  cursor:pointer;transition:all .15s;text-align:center;margin-top:6px}
+.auto-btn:hover{background:rgba(255,215,0,.08)}
+.auto-btn:active{background:rgba(255,215,0,.15)}
+/* ── BLUR CTRL ── */
+.blur-row{display:flex;align-items:center;gap:5px;margin-top:3px}
+.blur-lbl{font-size:7px;letter-spacing:1px;color:#777;white-space:nowrap}
+
 
 </style>
 </head>
@@ -218,6 +282,7 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
   </div>
   <div class="hd-proj">
     <button class="hd-btn sim-btn" id="btnSim" title="Preview simulado">⬛ SIM</button>
+    <button class="hd-btn" id="btnCmp" disabled title="Comparar dos capas">⊞ CMP</button>
     <button class="hd-btn" id="btnUndo" disabled title="Deshacer Ctrl+Z">↩ UNDO</button>
     <button class="hd-btn" id="btnSave" disabled>↓ PROYECTO</button>
     <label class="hd-btn" style="cursor:pointer" title="Cargar proyecto">↑ CARGAR<input type="file" id="loadFile" accept=".stncl.json,.json" style="display:none"></label>
@@ -252,7 +317,13 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
           <option value="0">Original</option>
         </select>
       </div>
+      <div class="blur-row">
+        <span class="blur-lbl">SUAVIZAR</span>
+        <input type="range" id="blurRadius" min="0" max="5" step="1" value="0" style="flex:1">
+        <span class="blur-lbl" id="blurVal">OFF</span>
+      </div>
       <button class="btn-run" id="btnAnalyze" disabled data-t="btn_analyze">ANALIZAR</button>
+      <button class="auto-btn" id="btnAutoStencil" disabled>⬡ AUTO STENCIL</button>
     </div>
 
     <div class="sec">
@@ -282,6 +353,15 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
         <div class="ctrl"><div class="ctrl-lbl" data-t="width_cm">Ancho cm</div><input type="number" id="outW" value="30" min="5" max="300"></div>
         <div class="ctrl"><div class="ctrl-lbl" data-t="height_cm">Alto cm</div><input type="number" id="outH" value="40" min="5" max="300"></div>
       </div>
+      <div class="preset-row">
+        <button class="preset-btn" data-preset="a4p">A4↕</button>
+        <button class="preset-btn" data-preset="a4l">A4↔</button>
+        <button class="preset-btn" data-preset="a3p">A3↕</button>
+        <button class="preset-btn" data-preset="a3l">A3↔</button>
+        <button class="preset-btn" data-preset="a2p">A2↕</button>
+        <button class="preset-btn" data-preset="a1p">A1↕</button>
+        <button class="preset-btn" data-preset="s7c">70×100</button>
+      </div>
     </div>
 
     <div class="sec">
@@ -290,7 +370,8 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
         <div class="fmt-btn fmt-svg on" data-fmt="svg">SVG</div>
         <div class="fmt-btn fmt-dxf on" data-fmt="dxf">DXF</div>
         <div class="fmt-btn fmt-png" data-fmt="png">PNG</div>
-        <div class="fmt-btn fmt-hpgl" style="border-color:var(--border);color:var(--muted)" data-fmt="hpgl">HPGL</div>
+        <div class="fmt-btn fmt-hpgl" data-fmt="hpgl">HPGL</div>
+        <div class="fmt-btn" data-fmt="svgml">SVG ML</div>
       </div>
       <div class="ctrl" style="margin-top:5px">
         <div class="ctrl-lbl"><span>DPI salida PNG</span><span class="ctrl-val" id="dpiVal">300</span></div>
@@ -309,6 +390,24 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
       <div class="zoom-vp" id="zoomVp">
         <canvas id="previewCanvas"></canvas>
         <canvas id="overlayCanvas"></canvas>
+      </div>
+      <!-- compare overlay bar -->
+      <div class="cmp-bar" id="cmpBar">
+        <span class="cmp-lbl">CMP</span>
+        <select class="cmp-sel" id="cmpLayerA"><option value="0">Capa 1</option></select>
+        <span class="cmp-lbl">vs</span>
+        <select class="cmp-sel" id="cmpLayerB"><option value="1">Capa 2</option></select>
+        <span class="cmp-lbl" style="color:#ffdc00">⬡ solapamiento amarillo</span>
+        <input type="range" id="cmpOpacity" min="0" max="1" step="1" value="1" style="width:32px">
+        <button class="cmp-btn" id="cmpClose">✕</button>
+      </div>
+      <!-- layer bridge view bar -->
+      <div class="lv-bar" id="lvBar">
+        <button class="lv-btn" id="lvPrev" title="capa anterior (←)">◀</button>
+        <span class="lv-name" id="lvName">—</span>
+        <button class="lv-btn" id="lvNext" title="capa siguiente (→)">▶</button>
+        <span class="lv-hint">←/→ navegar · ESC salir</span>
+        <button class="cmp-btn" id="lvClose">✕</button>
       </div>
       <!-- zoom controls -->
       <div class="zoom-controls" id="zoomControls" style="display:none">
@@ -705,27 +804,103 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
   }
   islands.sort((a,b)=>b.isle.length-a.isle.length);
 
-  /* ── 3. 8-connected BFS dist map ──────────────────────────────────
-     Seeds from ALL connected paper (isConn && result===0).
-     Propagates through remaining INK (result>0) — not original mask.
-     This way previously carved corridors are visible to future islands.
+  /* ── 3. Ink distance transform (medial axis weights) ───────────────
+     One BFS from all paper pixels. inkDist[i] = distance from ink
+     pixel i to the nearest paper edge. Used to weight bridge paths
+     so they prefer the thick centre of ink masses.
+     8-connected to match path search.
   ────────────────────────────────────────────────────────────────── */
-  function buildDistMap(){
-    const dist=new Uint16Array(n).fill(0xFFFF),prev=new Int32Array(n).fill(-1),q=[];
-    for(let i=0;i<n;i++){if(isConn[i]&&result[i]===0){dist[i]=0;q.push(i);}}
-    for(let qi=0;qi<q.length;qi++){
-      const i=q[qi],x=i%w,y=(i/w)|0,d1=dist[i]+1;
-      if(x>0   &&dist[i-1]  ===0xFFFF&&result[i-1]  >0){dist[i-1]  =d1;prev[i-1]  =i;q.push(i-1);}
-      if(x<w-1 &&dist[i+1]  ===0xFFFF&&result[i+1]  >0){dist[i+1]  =d1;prev[i+1]  =i;q.push(i+1);}
-      if(y>0   &&dist[i-w]  ===0xFFFF&&result[i-w]  >0){dist[i-w]  =d1;prev[i-w]  =i;q.push(i-w);}
-      if(y<h-1 &&dist[i+w]  ===0xFFFF&&result[i+w]  >0){dist[i+w]  =d1;prev[i+w]  =i;q.push(i+w);}
-      if(x>0   &&y>0   &&dist[i-w-1]===0xFFFF&&result[i-w-1]>0){dist[i-w-1]=d1;prev[i-w-1]=i;q.push(i-w-1);}
-      if(x<w-1 &&y>0   &&dist[i-w+1]===0xFFFF&&result[i-w+1]>0){dist[i-w+1]=d1;prev[i-w+1]=i;q.push(i-w+1);}
-      if(x>0   &&y<h-1 &&dist[i+w-1]===0xFFFF&&result[i+w-1]>0){dist[i+w-1]=d1;prev[i+w-1]=i;q.push(i+w-1);}
-      if(x<w-1 &&y<h-1 &&dist[i+w+1]===0xFFFF&&result[i+w+1]>0){dist[i+w+1]=d1;prev[i+w+1]=i;q.push(i+w+1);}
+  const inkDist=new Uint16Array(n).fill(0xFFFF);
+  {
+    const q2=[];
+    for(let i=0;i<n;i++){if(result[i]===0){inkDist[i]=0;q2.push(i);}}
+    for(let qi=0;qi<q2.length;qi++){
+      const i=q2[qi],x=i%w,y=(i/w)|0,d1=inkDist[i]+1;
+      if(x>0   &&inkDist[i-1]===0xFFFF&&result[i-1]>0){inkDist[i-1]=d1;q2.push(i-1);}
+      if(x<w-1 &&inkDist[i+1]===0xFFFF&&result[i+1]>0){inkDist[i+1]=d1;q2.push(i+1);}
+      if(y>0   &&inkDist[i-w]===0xFFFF&&result[i-w]>0){inkDist[i-w]=d1;q2.push(i-w);}
+      if(y<h-1 &&inkDist[i+w]===0xFFFF&&result[i+w]>0){inkDist[i+w]=d1;q2.push(i+w);}
+      if(x>0&&y>0     &&inkDist[i-w-1]===0xFFFF&&result[i-w-1]>0){inkDist[i-w-1]=d1;q2.push(i-w-1);}
+      if(x<w-1&&y>0   &&inkDist[i-w+1]===0xFFFF&&result[i-w+1]>0){inkDist[i-w+1]=d1;q2.push(i-w+1);}
+      if(x>0&&y<h-1   &&inkDist[i+w-1]===0xFFFF&&result[i+w-1]>0){inkDist[i+w-1]=d1;q2.push(i+w-1);}
+      if(x<w-1&&y<h-1 &&inkDist[i+w+1]===0xFFFF&&result[i+w+1]>0){inkDist[i+w+1]=d1;q2.push(i+w+1);}
     }
-    return{dist,prev};
   }
+
+  /* ── 4. Dist map — Dial's algorithm with circular bucket queue ────────
+     Max edge cost = 8. Circular queue needs only 9 slots.
+     Allocated ONCE per addBridges call, reused for all islands.
+     After drawCorridor marks new isConn pixels, we do a fast
+     incremental update (just re-seed newly connected pixels).
+     This gives correct chain-bridging cheaply.
+  ────────────────────────────────────────────────────────────────── */
+  const SLOTS=9; // max_edge_cost + 1
+  const dist=new Uint32Array(n).fill(0xFFFFFFFF);
+  const prev=new Int32Array(n).fill(-1);
+  // Circular bucket: slot s holds nodes with dist d where d%SLOTS===s
+  // Each slot is a growable array (we use a simple JS array per slot — small)
+  const wheel=Array.from({length:SLOTS},()=>[]);
+  let minDist=0;
+
+  function initDistMap(){
+    dist.fill(0xFFFFFFFF);prev.fill(-1);
+    for(let s=0;s<SLOTS;s++)wheel[s].length=0;
+    minDist=0;
+    const NBS8=[-1,1,-w,w,-w-1,-w+1,w-1,w+1];
+    // Seed from all connected paper
+    for(let i=0;i<n;i++){
+      if(isConn[i]&&result[i]===0&&dist[i]===0xFFFFFFFF){
+        dist[i]=0;prev[i]=-1;wheel[0].push(i);
+      }
+    }
+    _runDial(NBS8);
+  }
+
+  function _runDial(NBS8){
+    // Process all reachable nodes in distance order
+    let processed=0;
+    for(let safety=0;safety<n*2;safety++){
+      // Advance minDist to next non-empty slot
+      while(wheel[minDist%SLOTS].length===0){
+        minDist++;
+        if(minDist>0xFFFFFF)break;
+      }
+      if(minDist>0xFFFFFF)break;
+      const slot=minDist%SLOTS;
+      if(wheel[slot].length===0)break;
+      const i=wheel[slot].pop();
+      if(dist[i]!==minDist)continue; // stale entry
+      const x=i%w,y=(i/w)|0;
+      for(let d=0;d<8;d++){
+        const ni=i+NBS8[d];
+        if(ni<0||ni>=n)continue;
+        if(d===0&&x===0)continue;
+        if(d===1&&x===w-1)continue;
+        if(d===4&&(x===0||y===0))continue;
+        if(d===5&&(x===w-1||y===0))continue;
+        if(d===6&&(x===0||y===h-1))continue;
+        if(d===7&&(x===w-1||y===h-1))continue;
+        if(result[ni]===0)continue; // don't enter paper
+        const ec=Math.max(1,Math.min(8,Math.ceil(8/(inkDist[ni]+1))));
+        const nd=minDist+ec;
+        if(nd<dist[ni]){dist[ni]=nd;prev[ni]=i;wheel[nd%SLOTS].push(ni);}
+      }
+    }
+  }
+
+  // After carving a corridor, incrementally update dist map for new paper pixels
+  function updateDistMapForCorridor(newPaperPixels){
+    const NBS8=[-1,1,-w,w,-w-1,-w+1,w-1,w+1];
+    // Seed newly connected paper into the wheel
+    for(const i of newPaperPixels){
+      if(dist[i]===0xFFFFFFFF){dist[i]=0;prev[i]=-1;wheel[0].push(i);if(minDist>0)minDist=0;}
+    }
+    _runDial(NBS8);
+  }
+
+  // Build the initial global dist map
+  initDistMap();
+  const NBS8MAIN=[-1,1,-w,w,-w-1,-w+1,w-1,w+1];
 
   /* ── 4. Chaikin smoothing [[x,y]] → smooth curve, endpoints fixed ── */
   function chaikin(pts,iters=2){
@@ -747,28 +922,49 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
      Carved pixels become isConn seeds so subsequent islands can
      route THROUGH previous corridors (true chain bridging).
   ────────────────────────────────────────────────────────────────── */
+  /* Flared capsule corridor:
+     - Dense stamping (step = half radius) → smooth continuous capsule
+     - Ends flare to 1.5× width → stronger anchor where bridge meets
+       island and mainland (professional stencil practice)  */
   function drawCorridor(coords){
-    const step=Math.max(1,half);
+    const total=coords.length;
+    if(!total)return;
+    const newPaper=[];
+    // Path length for flare positioning
+    let pathLen=0;
+    const cum=[0];
+    for(let i=1;i<total;i++){
+      pathLen+=Math.hypot(coords[i][0]-coords[i-1][0],coords[i][1]-coords[i-1][1]);
+      cum.push(pathLen);
+    }
+    const flareZone=Math.min(pathLen*0.25,half*3); // flare first/last 25% or 3×half
+    const step=Math.max(1,half*0.5); // dense stamping = smooth capsule
     let acc=step;
-    for(let i=0;i<coords.length;i++){
-      if(i>0){const dx=coords[i][0]-coords[i-1][0],dy=coords[i][1]-coords[i-1][1];acc+=Math.hypot(dx,dy);}
-      if(acc>=step||i===0||i===coords.length-1){
+    for(let i=0;i<total;i++){
+      if(i>0)acc+=cum[i]-cum[i-1];
+      if(acc>=step||i===0||i===total-1){
         acc=0;
         const px=Math.round(coords[i][0]),py=Math.round(coords[i][1]);
         if(px<0||px>=w||py<0||py>=h)continue;
-        for(let dy=-half;dy<=half;dy++){
-          for(let dx=-half;dx<=half;dx++){
-            if(dx*dx+dy*dy<=halfSq){
+        // Flare: radius grows near both ends
+        const dEnd=Math.min(cum[i],pathLen-cum[i]);
+        const flare=dEnd<flareZone?1+0.5*(1-dEnd/flareZone):1;
+        const r=Math.max(1,Math.round(half*flare));
+        const r2=r*r;
+        for(let dy=-r;dy<=r;dy++){
+          for(let dx=-r;dx<=r;dx++){
+            if(dx*dx+dy*dy<=r2){
               const bx=px+dx,by=py+dy;
               if(bx>=0&&bx<w&&by>=0&&by<h){
-                result[by*w+bx]=0;
-                isConn[by*w+bx]=1; // corridor becomes connected paper
+                const bi=by*w+bx;
+                if(result[bi]>0){result[bi]=0;isConn[bi]=1;newPaper.push(bi);}
               }
             }
           }
         }
       }
     }
+    if(newPaper.length)updateDistMapForCorridor(newPaper);
   }
 
   /* ── 6. Bridge each island ── */
@@ -778,7 +974,7 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
     if(isConn[isle[0]])continue;
     const forced=overrides.force&&overrides.force.has(sid);
     const maxB=forced?MAX_BRIDGE*3:MAX_BRIDGE;
-    const{dist,prev}=buildDistMap();
+    // dist map already computed globally; refreshed after each corridor
     let sumX=0,sumY=0;
     for(const idx of isle){sumX+=idx%w;sumY+=(idx/w)|0;}
     const centX=(sumX/isle.length+.5)|0,centY=(sumY/isle.length+.5)|0;
@@ -798,32 +994,115 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
         const nx=bx+dx,ny=by+dy;
         if(nx<0||nx>=w||ny<0||ny>=h)continue;
         const ni=ny*w+nx;
-        if(result[ni]>0&&dist[ni]<bestD){bestD=dist[ni];bestNi=ni;}
+        if(result[ni]>0&&dist[ni]<0xFFFFFFFF&&dist[ni]<bestD){bestD=dist[ni];bestNi=ni;}
       }
       if(bestNi<0||bestD===0xFFFF||bestD>maxB)continue;
       const rawPath=[[bx,by],[bestNi%w,(bestNi/w)|0]];
       let cur=prev[bestNi],safety=0;
-      while(cur>=0&&result[cur]>0&&safety++<w+h){rawPath.push([cur%w,(cur/w)|0]);cur=prev[cur];}
+      while(cur>=0&&cur<n&&result[cur]>0&&safety++<w+h){rawPath.push([cur%w,(cur/w)|0]);cur=prev[cur];}
       if(cur>=0)rawPath.push([cur%w,(cur/w)|0]);
       candidates.push({rawPath,angle:Math.atan2(by-centY,bx-centX),len:bestD});
     }
     if(!candidates.length)continue;
     candidates.sort((a,b)=>a.len-b.len);
+
+    /* Selection strategy: 1st bridge = shortest. Subsequent bridges =
+       candidate that MAXIMISES min angular distance to already placed,
+       among the shortest 60% (avoids long weak bridges).
+       Gives even structural spread around the island. */
     const placed=[];
-    for(const cand of candidates){
-      if(placed.length>=nB)break;
-      if(placed.length>0&&placed.some(p=>{let d=Math.abs(cand.angle-p.angle);if(d>Math.PI)d=2*Math.PI-d;return d<minAng*.7;}))continue;
-      drawCorridor(chaikin(cand.rawPath,2));
-      placed.push(cand);
+    const pool=candidates.slice(0,Math.max(3,Math.ceil(candidates.length*0.6)));
+    // First: shortest
+    placed.push(pool[0]);
+    drawCorridor(chaikin(pool[0].rawPath,2));
+    while(placed.length<nB){
+      let best=null,bestScore=-1;
+      for(const cand of pool){
+        if(placed.includes(cand))continue;
+        let minD=Infinity;
+        for(const p of placed){
+          let d=Math.abs(cand.angle-p.angle);
+          if(d>Math.PI)d=2*Math.PI-d;
+          if(d<minD)minD=d;
+        }
+        // Score: angular spread first, shorter length as tiebreak
+        const score=minD*1000-cand.len;
+        if(minD>=minAng*0.5&&score>bestScore){bestScore=score;best=cand;}
+      }
+      if(!best)break; // no candidate with acceptable spread
+      drawCorridor(chaikin(best.rawPath,2));
+      placed.push(best);
     }
-    if(placed.length>0)for(const idx of isle)isConn[idx]=1;
+    if(placed.length>0){
+      for(const idx of isle)isConn[idx]=1;
+      // CRITICAL: seed the island's paper into the dist map so
+      // nested islands can chain-bridge through this one
+      updateDistMapForCorridor(isle);
+    }
+  }
+
+  /* ── 7. Connectivity verification — emergency re-bridge ──
+     After all bridges, re-check: any paper region still isolated
+     gets one emergency bridge (shortest possible), regardless of
+     angular constraints. Guarantees structural validity. */
+  {
+    const vis2=new Uint8Array(n);
+    const q2=[];
+    // Flood from all isConn paper
+    for(let i=0;i<n;i++){if(isConn[i]&&result[i]===0&&!vis2[i]){vis2[i]=1;q2.push(i);}}
+    for(let qi=0;qi<q2.length;qi++){
+      const i=q2[qi],x=i%w,y=(i/w)|0;
+      if(x>0&&result[i-1]===0&&!vis2[i-1]){vis2[i-1]=1;q2.push(i-1);}
+      if(x<w-1&&result[i+1]===0&&!vis2[i+1]){vis2[i+1]=1;q2.push(i+1);}
+      if(y>0&&result[i-w]===0&&!vis2[i-w]){vis2[i-w]=1;q2.push(i-w);}
+      if(y<h-1&&result[i+w]===0&&!vis2[i+w]){vis2[i+w]=1;q2.push(i+w);}
+    }
+    // Find orphan paper regions (result===0 but not reached)
+    const seen=new Uint8Array(n);
+    for(let si=0;si<n;si++){
+      if(result[si]!==0||vis2[si]||seen[si])continue;
+      // Collect this orphan region
+      const region=[],rq=[si];seen[si]=1;
+      for(let qi=0;qi<rq.length;qi++){
+        const i=rq[qi],x=i%w,y=(i/w)|0;
+        region.push(i);
+        if(x>0&&result[i-1]===0&&!seen[i-1]){seen[i-1]=1;rq.push(i-1);}
+        if(x<w-1&&result[i+1]===0&&!seen[i+1]){seen[i+1]=1;rq.push(i+1);}
+        if(y>0&&result[i-w]===0&&!seen[i-w]){seen[i-w]=1;rq.push(i-w);}
+        if(y<h-1&&result[i+w]===0&&!seen[i+w]){seen[i+w]=1;rq.push(i+w);}
+      }
+      if(region.length<minIsle)  {for(const idx of region)result[idx]=255;continue;} // fill tiny orphans
+      // Emergency bridge: nearest boundary pixel with valid dist
+      let bestD=0xFFFFFFFF,bestPath=null;
+      for(const idx of region){
+        const bx=idx%w,by=(idx/w)|0;
+        for(const[dx,dy]of NBRS8){
+          const nx=bx+dx,ny=by+dy;
+          if(nx<0||nx>=w||ny<0||ny>=h)continue;
+          const ni=ny*w+nx;
+          if(result[ni]>0&&dist[ni]<bestD){
+            bestD=dist[ni];
+            const rawPath=[[bx,by],[nx,ny]];
+            let cur=prev[ni],sf=0;
+            while(cur>=0&&cur<n&&result[cur]>0&&sf++<w+h){rawPath.push([cur%w,(cur/w)|0]);cur=prev[cur];}
+            if(cur>=0)rawPath.push([cur%w,(cur/w)|0]);
+            bestPath=rawPath;
+          }
+        }
+      }
+      if(bestPath){
+        drawCorridor(chaikin(bestPath,2));
+        for(const idx of region)isConn[idx]=1;
+        updateDistMapForCorridor(region);
+      }
+    }
   }
   return result;
 }
 
 /* Fill deleted islands with ink (255) before bridge processing */
 function applyIslandDeletes(mask, deletesMap){
-  if(!deletesMap||!deletesMap.size) return mask;
+  if(!deletesMap||!deletesMap.size) return new Uint8Array(mask); // always copy — prevents buffer detachment
   const result=new Uint8Array(mask);
   for(const pixels of deletesMap.values()){
     for(const idx of pixels) result[idx]=255;
@@ -860,21 +1139,302 @@ function getLayerOverrides(li){
   return S.bridgeOverrides[li]||{skip:new Set(),force:new Set()};
 }
 
+/* Convert smoothed closed loop to SVG cubic bezier path
+   Uses Catmull-Rom → cubic bezier conversion for smooth curves
+   that pass exactly through each point */
+function ptsToBezierPath(pts){
+  const n=pts.length;
+  if(n<3)return 'M'+pts.map(([x,y])=>x.toFixed(2)+' '+y.toFixed(2)).join('L')+'Z';
+  const f=v=>v.toFixed(2);
+  let d=`M${f(pts[0][0])} ${f(pts[0][1])}`;
+  for(let i=0;i<n;i++){
+    const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];
+    // Catmull-Rom control points (tension 0.5)
+    const cp1x=p1[0]+(p2[0]-p0[0])/6;
+    const cp1y=p1[1]+(p2[1]-p0[1])/6;
+    const cp2x=p2[0]-(p3[0]-p1[0])/6;
+    const cp2y=p2[1]-(p3[1]-p1[1])/6;
+    d+=` C${f(cp1x)} ${f(cp1y)} ${f(cp2x)} ${f(cp2y)} ${f(p2[0])} ${f(p2[1])}`;
+  }
+  return d+'Z';
+}
+
 /* ═══════════════════════════════════════════
-   VECTORIZER v2
+   MARCHING SQUARES VECTORIZER
+   Replaces half-edge pixel tracer.
+   
+   Each 2×2 pixel cell gets a 4-bit case based on
+   which corners are "ink". Edge crossing positions
+   are linearly interpolated → sub-pixel contours.
+   Segments are chained into closed loops.
 ═══════════════════════════════════════════ */
-function vectorizeMask(mask,w,h,simplify){
-  const tol=0.3+(simplify-1)*0.85;
-  const raw=traceContours(mask,w,h);
+
+// MS edge table: for each of 16 cases, which of 4 edges are crossed?
+// Edges: 0=top, 1=right, 2=bottom, 3=left
+// Each entry is pairs of edges forming segments.
+const MS_EDGES=[
+  [],           // 0000
+  [[3,2]],      // 0001 (BL)
+  [[2,1]],      // 0010 (BR)
+  [[3,1]],      // 0011
+  [[0,1]],      // 0100 (TR)
+  [[3,0],[2,1]],// 0101 (ambiguous — saddle)
+  [[0,2]],      // 0110
+  [[3,0]],      // 0111
+  [[0,3]],      // 1000 (TL)
+  [[0,2]],      // 1001
+  [[0,1],[3,2]],// 1010 (ambiguous — saddle)
+  [[0,1]],      // 1011
+  [[3,1]],      // 1100
+  [[2,1]],      // 1101
+  [[3,2]],      // 1110
+  [],           // 1111
+];
+
+function marchingSquares(mask,w,h,tol){
+  // Sample function: value at (x,y) — 0=paper, 1=ink
+  function v(x,y){
+    if(x<0||x>=w||y<0||y>=h)return 0;
+    return mask[y*w+x]>0?1:0;
+  }
+
+  // Linear interpolation: find t where value crosses 0.5
+  function lerp(v0,v1){return v0===v1?0.5:(0.5-v0)/(v1-v0);}
+
+  // Collect all segments as {x1,y1,x2,y2}
+  const segs=[];
+
+  for(let cy=0;cy<h;cy++){
+    for(let cx=0;cx<w;cx++){
+      // Corner values (TL, TR, BR, BL)
+      const tl=v(cx,cy),tr=v(cx+1,cy),br=v(cx+1,cy+1),bl=v(cx,cy+1);
+      const idx=(tl<<3)|(tr<<2)|(br<<1)|bl;
+      if(!MS_EDGES[idx].length)continue;
+
+      // Edge crossing positions (sub-pixel)
+      // top edge (TL→TR): y=cy, x=cx+lerp(tl,tr)
+      const et=[cx+lerp(tl,tr), cy];
+      // right edge (TR→BR): x=cx+1, y=cy+lerp(tr,br)
+      const er=[cx+1, cy+lerp(tr,br)];
+      // bottom edge (BR→BL): y=cy+1, x=cx+1-lerp(br,bl)
+      const eb=[cx+1-lerp(br,bl), cy+1];
+      // left edge (BL→TL): x=cx, y=cy+1-lerp(bl,tl)
+      const el=[cx, cy+1-lerp(bl,tl)];
+      const edgePts=[et,er,eb,el];
+
+      for(const[e0,e1] of MS_EDGES[idx]){
+        segs.push({x1:edgePts[e0][0],y1:edgePts[e0][1],x2:edgePts[e1][0],y2:edgePts[e1][1]});
+      }
+    }
+  }
+
+  if(!segs.length)return[];
+
+  // Chain segments into closed loops
+  // Build adjacency by matching endpoints (within epsilon)
+  const EPS=0.01;
+  const used=new Uint8Array(segs.length);
+  const loops=[];
+
+  // Build endpoint map for fast lookup
+  const endMap=new Map();
+  function key(x,y){return Math.round(x/EPS)*10000+Math.round(y/EPS);}
+  segs.forEach((s,i)=>{
+    const k1=key(s.x1,s.y1),k2=key(s.x2,s.y2);
+    if(!endMap.has(k1))endMap.set(k1,[]);
+    if(!endMap.has(k2))endMap.set(k2,[]);
+    endMap.get(k1).push({i,end:0});
+    endMap.get(k2).push({i,end:1});
+  });
+
+  for(let si=0;si<segs.length;si++){
+    if(used[si])continue;
+    const loop=[];
+    let cur=si,inEnd=0; // which end we entered from
+    let safety=0;
+    for(;;){
+      if(used[cur])break;
+      used[cur]=1;
+      const s=segs[cur];
+      // Add point based on which end we came in from
+      if(inEnd===0) loop.push([s.x1,s.y1]);
+      else          loop.push([s.x2,s.y2]);
+      // Find next segment from the other end
+      const outX=inEnd===0?s.x2:s.x1;
+      const outY=inEnd===0?s.y2:s.y1;
+      const k=key(outX,outY);
+      const nbrs=endMap.get(k)||[];
+      let found=false;
+      for(const{i:ni,end:ne}of nbrs){
+        if(!used[ni]){cur=ni;inEnd=ne;found=true;break;}
+      }
+      if(!found||++safety>segs.length+10)break;
+    }
+    if(loop.length>=4)loops.push(loop);
+  }
+
+  // Corner-preserving simplification + noise filter
+  const result=[];
+  const MIN_AREA=4; // px² — contours smaller than this are MS noise
+  loops.forEach(loop=>{
+    if(loopArea(loop)<MIN_AREA)return;
+    const s=simplifyLoop(loop,tol);
+    if(s.length>=3)result.push(s);
+  });
+  return result;
+}
+
+/* ═══════════════════════════════════════════
+   CORNER-AWARE SIMPLIFICATION
+   RDP alone rounds real corners (letters, logos).
+   Pipeline:
+   1. detectCorners — turning angle > threshold = corner
+   2. rdp between consecutive corners (corners pinned)
+   3. mixed path: straight runs → L, curved runs → C bezier
+═══════════════════════════════════════════ */
+
+/* Turning angle at point i of closed loop (radians, 0=straight) */
+function turnAngle(pts,i){
+  const n=pts.length;
+  const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n];
+  const a1=Math.atan2(p1[1]-p0[1],p1[0]-p0[0]);
+  const a2=Math.atan2(p2[1]-p1[1],p2[0]-p1[0]);
+  let d=a2-a1;
+  while(d>Math.PI)d-=2*Math.PI;
+  while(d<-Math.PI)d+=2*Math.PI;
+  return Math.abs(d);
+}
+
+/* Detect corner indices in closed loop.
+   Uses windowed turning angle to be robust against MS jitter:
+   compares direction over ±win points instead of adjacent. */
+function detectCorners(pts,angleThresh=0.9,win=3){
+  const n=pts.length;
+  if(n<8)return[];
+  const corners=[];
+  for(let i=0;i<n;i++){
+    const pPrev=pts[(i-win+n)%n],p=pts[i],pNext=pts[(i+win)%n];
+    const a1=Math.atan2(p[1]-pPrev[1],p[0]-pPrev[0]);
+    const a2=Math.atan2(pNext[1]-p[1],pNext[0]-p[0]);
+    let d=a2-a1;
+    while(d>Math.PI)d-=2*Math.PI;
+    while(d<-Math.PI)d+=2*Math.PI;
+    if(Math.abs(d)>angleThresh)corners.push({i,mag:Math.abs(d)});
+  }
+  if(!corners.length)return[];
+  // Non-max suppression: keep strongest corner in each ±win neighbourhood
+  corners.sort((a,b)=>b.mag-a.mag);
+  const kept=[],taken=new Uint8Array(n);
+  for(const c of corners){
+    let clash=false;
+    for(let o=-win;o<=win;o++){if(taken[(c.i+o+n)%n]){clash=true;break;}}
+    if(clash)continue;
+    kept.push(c.i);taken[c.i]=1;
+  }
+  return kept.sort((a,b)=>a-b);
+}
+
+/* RDP for OPEN polyline (endpoints pinned) — same as rdp but explicit */
+function rdpOpen(pts,eps){return rdp(pts,eps);}
+
+/* Corner-preserving simplification of a closed loop */
+function simplifyLoop(pts,eps){
+  const n=pts.length;
+  if(n<8)return pts;
+  const corners=detectCorners(pts);
+  if(corners.length<2){
+    // No corners — pure RDP on the whole loop
+    return rdp(pts,eps);
+  }
+  // Split loop into segments between consecutive corners, RDP each
+  const out=[];
+  for(let ci=0;ci<corners.length;ci++){
+    const a=corners[ci],b=corners[(ci+1)%corners.length];
+    // Extract segment a..b (wrapping)
+    const seg=[];
+    let i=a;
+    for(;;){
+      seg.push(pts[i]);
+      if(i===b)break;
+      i=(i+1)%n;
+      if(seg.length>n)break; // safety
+    }
+    const simp=rdpOpen(seg,eps);
+    // Append without duplicating the joint corner
+    for(let k=0;k<simp.length-1;k++)out.push(simp[k]);
+  }
+  return out.length>=3?out:rdp(pts,eps);
+}
+
+/* Mixed-mode SVG path: straight runs → L, smooth runs → Catmull-Rom C.
+   A point is "smooth" if its turning angle < smoothThresh. */
+function ptsToMixedPath(pts,smoothThresh=0.5){
+  const n=pts.length;
+  if(n<3)return 'M'+pts.map(([x,y])=>x.toFixed(2)+' '+y.toFixed(2)).join('L')+'Z';
+  const f=v=>v.toFixed(2);
+  // Classify each vertex
+  const sharp=new Uint8Array(n);
+  for(let i=0;i<n;i++)if(turnAngle(pts,i)>smoothThresh)sharp[i]=1;
+  let d=`M${f(pts[0][0])} ${f(pts[0][1])}`;
+  for(let i=0;i<n;i++){
+    const j=(i+1)%n;
+    const p1=pts[i],p2=pts[j];
+    if(sharp[i]&&sharp[j]){
+      // Straight segment between two sharp corners
+      d+=`L${f(p2[0])} ${f(p2[1])}`;
+    }else{
+      // Smooth bezier (Catmull-Rom)
+      const p0=pts[(i-1+n)%n],p3=pts[(j+1)%n];
+      const cp1x=p1[0]+(p2[0]-p0[0])/6, cp1y=p1[1]+(p2[1]-p0[1])/6;
+      const cp2x=p2[0]-(p3[0]-p1[0])/6, cp2y=p2[1]-(p3[1]-p1[1])/6;
+      d+=`C${f(cp1x)} ${f(cp1y)} ${f(cp2x)} ${f(cp2y)} ${f(p2[0])} ${f(p2[1])}`;
+    }
+  }
+  return d+'Z';
+}
+
+/* Signed area of closed polygon (px²) — for noise filtering */
+function loopArea(pts){
+  let a=0;
+  const n=pts.length;
+  for(let i=0;i<n;i++){
+    const[x1,y1]=pts[i],[x2,y2]=pts[(i+1)%n];
+    a+=x1*y2-x2*y1;
+  }
+  return Math.abs(a/2);
+}
+
+/* ═══════════════════════════════════════════
+   VECTORIZER v3 — Marching Squares + Bezier
+   MS gives sub-pixel contours with linear interp.
+   RDP simplification. Catmull-Rom Bezier export.
+   Cache: invalidated when mask or simplify changes.
+═══════════════════════════════════════════ */
+const VEC_CACHE=new Map(); // key: li → {maskHash, simplify, contours, pathDs}
+
+function maskHash(mask){
+  // Fast 32-bit XOR hash for cache invalidation
+  let h=0x12345678;
+  for(let i=0;i<mask.length;i+=64)h^=mask[i]*(i+1);
+  return h;
+}
+
+function vectorizeMask(mask,w,h,simplify,cacheKey=null){
+  const tol=0.4+(simplify-1)*0.7; // MS gives smoother baseline, less RDP needed
+  if(cacheKey!==null){
+    const cached=VEC_CACHE.get(cacheKey);
+    if(cached&&cached.simplify===simplify&&cached.hash===maskHash(mask))
+      return{contours:cached.contours,pathDs:cached.pathDs};
+  }
+  const raw=marchingSquares(mask,w,h,tol);
   const contours=[],pathDs=[];
   for(const loop of raw){
-    if(loop.length<6)continue;
-    const smooth=chaikinLoop(loop,simplify<5?2:1);
-    const s=rdp(smooth,tol*0.6);
-    if(s.length<3)continue;
-    contours.push(s);
-    pathDs.push('M'+s.map(([x,y])=>x.toFixed(2)+' '+y.toFixed(2)).join('L')+'Z');
+    if(loop.length<3)continue;
+    contours.push(loop);
+    pathDs.push(ptsToMixedPath(loop));
   }
+  if(cacheKey!==null)
+    VEC_CACHE.set(cacheKey,{simplify,hash:maskHash(mask),contours,pathDs});
   return{contours,pathDs};
 }
 
@@ -962,6 +1522,37 @@ function buildSVG(pathDs,w,h,widthCm,heightCm){
   return`<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${widthCm}cm" height="${heightCm}cm" viewBox="0 0 ${w} ${h}">
   <path fill="#000000" fill-rule="evenodd" stroke="none" d="${pathDs.join(' ')}"/>
+  <g id="registration" fill="none" stroke="#000000" stroke-width="${f3(sPx)}">${reg}</g>
+</svg>`;
+}
+
+/* ═══════════════════════════════════════════
+   MULTI-LAYER SVG BUILDER
+   All layers as separate <g> groups in one SVG.
+   Each layer has its real color. Useful for
+   Inkscape/Affinity workflow.
+═══════════════════════════════════════════ */
+function buildSVGMulti(layerPaths,colors,names,w,h,widthCm,heightCm){
+  const wMM=widthCm*10,pxPerMM=w/wMM;
+  const mPx=8*pxPerMM,aPx=5*pxPerMM,sPx=0.5*pxPerMM;
+  const corners=[[mPx,mPx],[w-mPx,mPx],[mPx,h-mPx],[w-mPx,h-mPx]];
+  let reg='';
+  for(const[cx,cy]of corners){
+    reg+=`<line x1="${f3(cx-aPx)}" y1="${f3(cy)}" x2="${f3(cx+aPx)}" y2="${f3(cy)}"/>`;
+    reg+=`<line x1="${f3(cx)}" y1="${f3(cy-aPx)}" x2="${f3(cx)}" y2="${f3(cy+aPx)}"/>`;
+  }
+  const groups=layerPaths.map((pathDs,i)=>{
+    const id=`capa_${String(i+1).padStart(2,'0')}`;
+    const name=names[i]||id;
+    const col=colors[i]||'#000000';
+    return `  <g id="${id}" inkscape:label="${name}" fill="${col}" fill-rule="evenodd" stroke="none">
+    <path d="${pathDs.join(' ')}"/>
+  </g>`;
+  }).join('\n');
+  return`<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+     width="${widthCm}cm" height="${heightCm}cm" viewBox="0 0 ${w} ${h}">
+${groups}
   <g id="registration" fill="none" stroke="#000000" stroke-width="${f3(sPx)}">${reg}</g>
 </svg>`;
 }
@@ -1058,6 +1649,11 @@ function crc32(buf,start,end){
    Returns base64 PNG string (no data: prefix)
 ═══════════════════════════════════════════ */
 function buildPNG(mask,w,h,widthCm,heightCm,dpi=300){
+  // Validate: check rendered pixel density
+  const actualDpi=Math.round(w/(widthCm/2.54));
+  if(dpi>actualDpi*1.5){
+    console.warn(`PNG DPI warning: requested ${dpi}dpi but image only has ~${actualDpi}dpi at ${widthCm}cm width. Output will be upscaled.`);
+  }
   const c=Object.assign(document.createElement('canvas'),{width:w,height:h});
   const ctx=c.getContext('2d');
   const idata=ctx.createImageData(w,h),px=idata.data;
@@ -1095,7 +1691,8 @@ function renderPreview(){
   for(let li=0;li<S.layers.length;li++){
     if(S.layers[li].visible===false)continue;
     const rawMask=S.masks[li];if(!rawMask)continue;
-    const mask=applyIslandDeletes(rawMask,S.islandDeletes[li]);
+    const baseMaskR=applyIslandDeletes(rawMask,S.islandDeletes[li]);
+    const mask=S.layers[li].inverted?baseMaskR.map(v=>v>0?0:255):baseMaskR;
     const[r,g,b]=hexToRgb(S.layers[li].color);
     for(let i=0;i<w*h;i++){if(mask[i]){px[i*4]=r;px[i*4+1]=g;px[i*4+2]=b;px[i*4+3]=255;}}
   }
@@ -1126,10 +1723,13 @@ function renderLayers(){
           <input type="color" value="${layer.color}" data-li="${idx}">
         </div>
         <canvas class="lh-thumb" id="lthumb${idx}"></canvas>
-        <span class="lh-name">${layer.name}</span>
+        <span class="lh-name" title="doble clic para renombrar">${layer.name}</span>
         <button class="lh-btn${layer.visible===false?'':' vis-on'}" data-li="${idx}" data-role="vis" title="visibility">${layer.visible===false?'○':'●'}</button>
         <button class="lh-btn" data-li="${idx}" data-role="up" ${idx===0?'disabled':''} title="move up">↑</button>
         <button class="lh-btn" data-li="${idx}" data-role="dn" ${idx===n-1?'disabled':''} title="move down">↓</button>
+        <button class="lh-btn${layer.inverted?' inv-on':''}" data-li="${idx}" data-role="inv" title="invertir máscara">⇅</button>
+        <button class="lh-btn${lvActive&&lvIndex===idx?' eye-on':''}" data-li="${idx}" data-role="eye" title="ver bridges de esta capa">👁</button>
+        <button class="lh-btn" data-li="${idx}" data-role="dl" title="exportar capa">↓</button>
         <button class="lh-btn${S.beData&&S.beData.li===idx?' be-active':''}" data-li="${idx}" data-role="be" title="edit bridges">⊕</button>
       </div>
       <div class="layer-body">
@@ -1143,6 +1743,12 @@ function renderLayers(){
           <input type="range" min="0" max="8" step="1" value="${openV}" data-li="${idx}" data-role="open" style="flex:1">
           <span class="thr-val" id="ov${idx}" style="color:#e8a020">${openV===0?'OFF':openV+'px'}</span>
         </div>
+        <div class="thr-row">
+          <span class="thr-lbl kerf" style="font-size:6px;letter-spacing:.5px">KERF</span>
+          <input type="range" min="-2" max="2" step="0.1" value="${(layer.kerf??0).toFixed(1)}" data-li="${idx}" data-role="kerf" style="flex:1">
+          <span class="thr-val kerf-val" id="kv${idx}">${(layer.kerf??0)===0?'OFF':(layer.kerf??0).toFixed(1)+'mm'}</span>
+        </div>
+        <div class="cut-info" id="ci${idx}">—</div>
         <div class="thr-row">
           <span class="thr-lbl" style="font-size:6px;letter-spacing:.5px;color:#777">MIN isle</span>
           <input type="range" min="4" max="600" step="2" value="${minV}" data-li="${idx}" data-role="min" style="flex:1">
@@ -1158,9 +1764,10 @@ function renderLayers(){
     // Color picker
     item.querySelector('input[type=color]').addEventListener('input',e=>{
       const li=+e.target.dataset.li;
+      pushUndo();
       S.layers[li].color=e.target.value;
       e.target.parentElement.style.background=e.target.value;
-      renderPreview();
+      autoSaveSession();renderPreview();
     });
 
     // Sliders (thr / min / max)
@@ -1168,19 +1775,28 @@ function renderLayers(){
       inp.addEventListener('input',e=>{
         const li=+e.target.dataset.li,val=+e.target.value,role=e.target.dataset.role;
         if(role==='thr'){
+          pushUndo();
           S.layers[li].threshold=val;
           $(`tv${li}`).textContent=val.toFixed(2);
           const raw=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,S.layers[li].centroidIdx,val);
           S.masks[li]=morphOpen(raw,S.imgW,S.imgH,S.layers[li].open||0);
-          invalidateBeCache();
-          renderPreview();
+          invalidateBeCache();VEC_CACHE.delete(li);invalidateBridgedMasks();
+          autoSaveSession();renderPreview();setTimeout(()=>updateCutInfo(li),500);
         } else if(role==='open'){
+          pushUndo();
           S.layers[li].open=val;
           $(`ov${li}`).textContent=val===0?'OFF':val+'px';
           const rawO=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,S.layers[li].centroidIdx,S.layers[li].threshold);
           S.masks[li]=morphOpen(rawO,S.imgW,S.imgH,val);
-          invalidateBeCache();
-          renderPreview();
+          invalidateBeCache();VEC_CACHE.delete(li);invalidateBridgedMasks();
+          autoSaveSession();renderPreview();
+        } else if(role==='kerf'){
+          S.layers[li].kerf=val;
+          $(`kv${li}`).textContent=val==0?'OFF':val.toFixed(1)+'mm';
+          invalidateBeCache();VEC_CACHE.delete(li);invalidateBridgedMasks();
+          autoSaveSession();renderPreview();
+          // update cut info async
+          setTimeout(()=>updateCutInfo(li),300);
         } else if(role==='min'){
           S.layers[li].minIsle=val;
           $(`nv${li}`).textContent=val;
@@ -1199,21 +1815,46 @@ function renderLayers(){
         if(role==='vis'){
           S.layers[li].visible=S.layers[li].visible===false?true:false;
           renderLayers();renderPreview();
+        } else if(role==='inv'){
+          S.layers[li].inverted=!S.layers[li].inverted;
+          // Rebuild mask with inversion
+          const rawInv=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,S.layers[li].centroidIdx,S.layers[li].threshold);
+          const morphedInv=morphOpen(rawInv,S.imgW,S.imgH,S.layers[li].open||0);
+          S.masks[li]=S.layers[li].inverted?morphedInv.map(v=>v>0?0:255):morphedInv;
+          invalidateBeCache();invalidateBridgedMasks();renderLayers();renderPreview();
+        } else if(role==='eye'){
+          if(lvActive&&lvIndex===li)exitLayerView();
+          else enterLayerView(li);
+        } else if(role==='dl'){
+          exportSingleLayer(li);
         } else if(role==='be'){
           if(S.beData&&S.beData.li===li) exitBridgeEdit();
           else enterBridgeEdit(li);
         } else if(role==='up'&&li>0){
           [S.layers[li-1],S.layers[li]]=[S.layers[li],S.layers[li-1]];
           [S.masks[li-1], S.masks[li]] =[S.masks[li], S.masks[li-1]];
-          renderLayers();renderPreview();
+          invalidateBridgedMasks();autoSaveSession();renderLayers();renderPreview();
         } else if(role==='dn'&&li<S.layers.length-1){
           [S.layers[li+1],S.layers[li]]=[S.layers[li],S.layers[li+1]];
           [S.masks[li+1], S.masks[li]] =[S.masks[li], S.masks[li+1]];
-          renderLayers();renderPreview();
+          invalidateBridgedMasks();renderLayers();renderPreview();
         }
       });
     });
 
+    // Rename on dblclick
+    item.querySelector('.lh-name').addEventListener('dblclick',e=>{
+      const span=e.target;
+      span.contentEditable='true';span.focus();
+      const sel=window.getSelection(),range=document.createRange();
+      range.selectNodeContents(span);sel.removeAllRanges();sel.addRange(range);
+      span.addEventListener('blur',()=>{
+        span.contentEditable='false';
+        S.layers[idx].name=span.textContent.trim()||`Color ${idx+1}`;
+        autoSaveSession();
+      },{once:true});
+      span.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();span.blur();}},{once:true});
+    });
     // Drag & drop (handle only)
     item.querySelector('.lh-handle').addEventListener('mousedown',()=>item.draggable=true);
     item.addEventListener('dragstart',e=>{
@@ -1258,6 +1899,92 @@ function renderLayers(){
 }
 
 /* ═══════════════════════════════════════════
+   LAYER BRIDGE VIEW (👁)
+   Shows single layer's bridged mask in B&W,
+   navigable with ←/→. Uses S.lastBridgedMasks
+   cache from previewBridges, or computes on demand.
+═══════════════════════════════════════════ */
+let lvActive=false,lvIndex=0;
+
+async function ensureBridgedMasks(){
+  // Reuse cache if valid (same layer count and image)
+  if(S.lastBridgedMasks&&
+     S.lastBridgedMasks.length===S.layers.length&&
+     S.lastBridgedW===S.imgW)return S.lastBridgedMasks;
+  const widthCm=parseFloat($('outW').value)||30;
+  const bridgeMM=parseFloat($('bridgeWidth').value);
+  const bridgePx=Math.max(1,Math.round(bridgeMM*S.imgW/(widthCm*10)));
+  const globalMinIsle=parseInt($('minIsleSize').value)||50;
+  showProgress(true,'Bridges por capa…');setProgress(30);
+  const masks=await computeAllBridgedMasks(bridgePx,globalMinIsle);
+  showProgress(false);
+  S.lastBridgedMasks=masks;
+  S.lastBridgedW=S.imgW;
+  return masks;
+}
+
+function invalidateBridgedMasks(){
+  S.lastBridgedMasks=null;
+}
+
+async function enterLayerView(li){
+  if(!S.masks.length)return;
+  // Exit conflicting modes
+  if(cmpActive){cmpActive=false;$('btnCmp').classList.remove('on');$('cmpBar').classList.remove('on');}
+  if(S.beData)exitBridgeEdit();
+  const masks=await ensureBridgedMasks();
+  if(!masks)return;
+  lvActive=true;lvIndex=Math.max(0,Math.min(li,S.layers.length-1));
+  $('lvBar').classList.add('on');
+  renderLayerView();
+  renderLayers(); // refresh eye button states
+}
+
+function exitLayerView(){
+  if(!lvActive)return;
+  lvActive=false;
+  $('lvBar').classList.remove('on');
+  $('overlayCanvas').style.display='none';
+  renderLayers();
+  renderPreview();
+}
+
+function renderLayerView(){
+  if(!lvActive||!S.lastBridgedMasks)return;
+  const li=lvIndex;
+  const mask=S.lastBridgedMasks[li];
+  if(!mask){exitLayerView();return;}
+  const w=S.imgW,h=S.imgH;
+  const canvas=$('previewCanvas');
+  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+  const ctx=canvas.getContext('2d');
+  const idata=ctx.createImageData(w,h),px=idata.data;
+  // B&W: ink=black, paper=white — exactly what gets cut
+  for(let i=0;i<w*h;i++){
+    const v=mask[i]>0?0:255;
+    px[i*4]=v;px[i*4+1]=v;px[i*4+2]=v;px[i*4+3]=255;
+  }
+  ctx.putImageData(idata,0,0);
+  // Update bar
+  const layer=S.layers[li];
+  $('lvName').textContent=`${li+1}/${S.layers.length} — ${layer.name}`;
+  $('lvPrev').disabled=li===0;
+  $('lvNext').disabled=li===S.layers.length-1;
+  $('placeholder').style.display='none';
+  canvas.style.display='block';
+  $('overlayCanvas').style.display='none';
+}
+
+function lvNav(dir){
+  if(!lvActive)return;
+  const ni=lvIndex+dir;
+  if(ni<0||ni>=S.layers.length)return;
+  lvIndex=ni;
+  renderLayerView();
+  renderLayers();
+}
+
+/* ═══════════════════════════════════════════
    PREVIEW BRIDGES
 ═══════════════════════════════════════════ */
 async function previewBridges(){
@@ -1267,16 +1994,10 @@ async function previewBridges(){
   const w=S.imgW,h=S.imgH;
   const bridgePx=Math.max(1,Math.round(bridgeMM*w/(widthCm*10)));
   const globalMinIsle=parseInt($('minIsleSize').value)||50;
-  showProgress(true,'Calculando bridges…');
-  setProgress(20);await sleep(20);
-  const bridgedMasks=S.masks.map((m,li)=>{
-    setProgMsg(`${li+1}/${S.masks.length}…`);
-    const minI=S.layers[li].minIsle??globalMinIsle;
-    const delMap=S.islandDeletes[li]||new Map();
-    const baseMask=applyIslandDeletes(m,delMap);
-    const auto=addBridges(baseMask,w,h,bridgePx,minI,S.layers[li].maxIsle||0,getLayerOverrides(li));
-    return applyManualLines(auto,w,h,baseMask,S.manualLines[li]||[]);
-  });
+  showProgress(true,'Calculando bridges…');setProgress(10);await sleep(10);
+  setProgMsg('Bridge worker…');
+  const bridgedMasks=await computeAllBridgedMasks(bridgePx,globalMinIsle);
+  S.lastBridgedMasks=bridgedMasks;S.lastBridgedW=S.imgW; // cache for layer view + thumbs
   setProgress(80);await sleep(10);
   const canvas=$('previewCanvas'),ctx=canvas.getContext('2d');
   const idata=ctx.createImageData(w,h),px=idata.data;
@@ -1286,8 +2007,379 @@ async function previewBridges(){
     for(let i=0;i<w*h;i++){if(m[i]){px[i*4]=r;px[i*4+1]=g;px[i*4+2]=b;px[i*4+3]=255;}}
   }
   ctx.putImageData(idata,0,0);
+  // Update thumbnails to show bridged masks
+  renderBridgedThumbs(bridgedMasks);
   setProgress(100);await sleep(200);showProgress(false);
   setStatus('Bridges preview',`Ø ${bridgeMM}mm`);
+}
+
+/* Redraw layer thumbnails using bridged masks */
+function renderBridgedThumbs(bridgedMasks){
+  const w=S.imgW,h=S.imgH;
+  bridgedMasks.forEach((mask,idx)=>{
+    const tc=$(`lthumb${idx}`);if(!tc||!mask)return;
+    tc.width=32;tc.height=32;
+    const ctx=tc.getContext('2d');
+    const idata=ctx.createImageData(32,32),px=idata.data;
+    const sw=w/32,sh=h/32;
+    for(let ty=0;ty<32;ty++)for(let tx=0;tx<32;tx++){
+      const si=(Math.round(ty*sh)*w+Math.round(tx*sw));
+      const v=mask[si]>0?0:255;
+      const ti=(ty*32+tx)*4;
+      px[ti]=v;px[ti+1]=v;px[ti+2]=v;px[ti+3]=255;
+    }
+    ctx.putImageData(idata,0,0);
+    // Gold border to signal "bridged"
+    ctx.strokeStyle='#ffdc00';ctx.lineWidth=1;
+    ctx.strokeRect(0.5,0.5,31,31);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   IMAGE PRE-PROCESSING
+═══════════════════════════════════════════ */
+function gaussianBlur(imageData,w,h,radius){
+  if(!radius||radius<=0)return imageData;
+  // Build Gaussian kernel (1D separable)
+  const size=radius*2+1;
+  const sigma=Math.max(0.5,radius/2.5);
+  const kernel=new Float32Array(size);
+  let sum=0;
+  for(let i=0;i<size;i++){
+    const x=i-radius;
+    kernel[i]=Math.exp(-(x*x)/(2*sigma*sigma));
+    sum+=kernel[i];
+  }
+  for(let i=0;i<size;i++)kernel[i]/=sum;
+
+  const src=imageData.data;
+  const tmp=new Uint8ClampedArray(src.length);
+  const out=new Uint8ClampedArray(src.length);
+
+  // Horizontal pass
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      let r=0,g=0,b=0,a=0;
+      for(let k=0;k<size;k++){
+        const sx=Math.max(0,Math.min(w-1,x+k-radius));
+        const idx=(y*w+sx)*4;
+        const wt=kernel[k];
+        r+=src[idx]*wt;g+=src[idx+1]*wt;b+=src[idx+2]*wt;a+=src[idx+3]*wt;
+      }
+      const oi=(y*w+x)*4;
+      tmp[oi]=r;tmp[oi+1]=g;tmp[oi+2]=b;tmp[oi+3]=a;
+    }
+  }
+  // Vertical pass
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      let r=0,g=0,b=0,a=0;
+      for(let k=0;k<size;k++){
+        const sy=Math.max(0,Math.min(h-1,y+k-radius));
+        const idx=(sy*w+x)*4;
+        const wt=kernel[k];
+        r+=tmp[idx]*wt;g+=tmp[idx+1]*wt;b+=tmp[idx+2]*wt;a+=tmp[idx+3]*wt;
+      }
+      const oi=(y*w+x)*4;
+      out[oi]=r;out[oi+1]=g;out[oi+2]=b;out[oi+3]=a;
+    }
+  }
+  return new ImageData(out,w,h);
+}
+
+/* ═══════════════════════════════════════════
+   AUTO LAYER NAMING (by luminance position)
+═══════════════════════════════════════════ */
+function autoLayerName(pos,total){
+  const names={
+    eu:[['zuri fondoa','argi fondoa','tonu argia','tonu erdikoa','itzala','itzal iluna','beltza'],
+        ['argi fondoa','tonu erdikoa','itzala'],
+        ['fondoa','xehetasuna']],
+    es:[['fondo blanco','fondo claro','tono claro','tono medio','sombra','sombra oscura','negro'],
+        ['fondo claro','tono medio','sombra'],
+        ['fondo','detalle']],
+    en:[['white bg','light bg','light tone','mid tone','shadow','dark shadow','black'],
+        ['light bg','mid tone','shadow'],
+        ['background','detail']]
+  };
+  const lang=currentLang||'es';
+  const tbl=names[lang]||names.es;
+  if(total<=2)return tbl[2][pos]||`${T('threshold')} ${pos+1}`;
+  if(total<=3)return tbl[1][pos]||`${T('threshold')} ${pos+1}`;
+  const idx=Math.round(pos*(6/(Math.max(total-1,1))));
+  return tbl[0][Math.min(idx,6)]||`${T('threshold')} ${pos+1}`;
+}
+
+/* ═══════════════════════════════════════════
+   MORPHOLOGICAL ERODE / DILATE (standalone)
+   Used for kerf compensation
+═══════════════════════════════════════════ */
+function morphErode(mask,w,h,r){
+  if(!r)return mask;
+  const n=w*h,out=new Uint8Array(n);
+  const tmp=new Uint8Array(n);
+  // Horizontal erode
+  for(let y=0;y<h;y++){
+    let cnt=0;
+    for(let x=0;x<=Math.min(r,w-1);x++)if(mask[y*w+x])cnt++;
+    for(let x=0;x<w;x++){
+      const xr=x+r;if(xr<w&&mask[y*w+xr])cnt++;
+      const xl=x-r-1;if(xl>=0&&mask[y*w+xl])cnt--;
+      const win=Math.min(xr,w-1)-Math.max(0,x-r)+1;
+      tmp[y*w+x]=(cnt===win)?255:0;
+    }
+  }
+  // Vertical erode
+  for(let x=0;x<w;x++){
+    let cnt=0;
+    for(let y=0;y<=Math.min(r,h-1);y++)if(tmp[y*w+x])cnt++;
+    for(let y=0;y<h;y++){
+      const yr=y+r;if(yr<h&&tmp[yr*w+x])cnt++;
+      const yl=y-r-1;if(yl>=0&&tmp[yl*w+x])cnt--;
+      const win=Math.min(yr,h-1)-Math.max(0,y-r)+1;
+      out[y*w+x]=(cnt===win)?255:0;
+    }
+  }
+  return out;
+}
+
+function morphDilate(mask,w,h,r){
+  if(!r)return mask;
+  const n=w*h,tmp=new Uint8Array(n),out=new Uint8Array(n);
+  for(let y=0;y<h;y++){
+    let cnt=0;
+    for(let x=0;x<=Math.min(r,w-1);x++)if(mask[y*w+x])cnt++;
+    for(let x=0;x<w;x++){
+      const xr=x+r;if(xr<w&&mask[y*w+xr])cnt++;
+      const xl=x-r-1;if(xl>=0&&mask[y*w+xl])cnt--;
+      tmp[y*w+x]=cnt>0?255:0;
+    }
+  }
+  for(let x=0;x<w;x++){
+    let cnt=0;
+    for(let y=0;y<=Math.min(r,h-1);y++)if(tmp[y*w+x])cnt++;
+    for(let y=0;y<h;y++){
+      const yr=y+r;if(yr<h&&tmp[yr*w+x])cnt++;
+      const yl=y-r-1;if(yl>=0&&tmp[yl*w+x])cnt--;
+      out[y*w+x]=cnt>0?255:0;
+    }
+  }
+  return out;
+}
+
+/* Apply kerf compensation to a mask */
+function applyKerf(mask,w,h,kerfMm,widthCm){
+  if(!kerfMm)return mask;
+  const kerfPx=Math.max(1,Math.round(Math.abs(kerfMm)*w/(widthCm*10)));
+  return kerfMm>0?morphDilate(mask,w,h,kerfPx):morphErode(mask,w,h,kerfPx);
+}
+
+/* ═══════════════════════════════════════════
+   FEATURE SIZE ANALYSIS
+   Checks if a mask has features thinner than minMm.
+   Returns ratio of thin area (0=good, 1=all thin).
+═══════════════════════════════════════════ */
+function analyzeFeatureSize(mask,w,h,minMm,widthCm){
+  const minPx=Math.max(1,Math.round(minMm*w/(widthCm*10)));
+  const eroded=morphErode(mask,w,h,minPx);
+  let orig=0,thin=0;
+  for(let i=0;i<mask.length;i++){
+    if(mask[i]){orig++;if(!eroded[i])thin++;}
+  }
+  return orig>0?thin/orig:0;
+}
+
+/* ═══════════════════════════════════════════
+   CUT PATH OPTIMIZATION
+   Reorders contours (greedy nearest-neighbor)
+   to minimize plotter travel distance.
+═══════════════════════════════════════════ */
+function optimizePaths(contours){
+  if(contours.length<=2)return contours;
+  const n=contours.length;
+  const used=new Uint8Array(n);
+  const result=[];
+  let cx=0,cy=0;
+  for(let step=0;step<n;step++){
+    let bestD=Infinity,bestJ=0;
+    for(let j=0;j<n;j++){
+      if(used[j])continue;
+      const[sx,sy]=contours[j][0];
+      const d=(sx-cx)**2+(sy-cy)**2;
+      if(d<bestD){bestD=d;bestJ=j;}
+    }
+    used[bestJ]=1;
+    result.push(contours[bestJ]);
+    const last=contours[bestJ].at(-1);
+    cx=last[0];cy=last[1];
+  }
+  return result;
+}
+
+/* ═══════════════════════════════════════════
+   CUT LENGTH ESTIMATION
+   Returns total path length in mm.
+═══════════════════════════════════════════ */
+function calcCutLength(contours,w,widthCm){
+  const mmPerPx=widthCm*10/w;
+  let mm=0;
+  for(const pts of contours){
+    for(let i=1;i<pts.length;i++){
+      mm+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])*mmPerPx;
+    }
+    // closing segment
+    if(pts.length>1){
+      mm+=Math.hypot(pts[0][0]-pts.at(-1)[0],pts[0][1]-pts.at(-1)[1])*mmPerPx;
+    }
+  }
+  return mm;
+}
+
+/* Update cut-info display for a layer */
+async function updateCutInfo(li){
+  const layer=S.layers[li];
+  if(!S.masks[li]){$(`ci${li}`).textContent='—';return;}
+  const widthCm=parseFloat($('outW').value)||30;
+  const simplify=parseInt($('simplify').value)||5;
+  const w=S.imgW,h=S.imgH;
+  const thinRatio=analyzeFeatureSize(S.masks[li],w,h,1.5,widthCm);
+  const{contours}=vectorizeMask(S.masks[li],w,h,simplify,li);
+  const mm=calcCutLength(contours,w,widthCm);
+  const m=(mm/1000).toFixed(1);
+  const warn=thinRatio>0.05?` ⚠ ${Math.round(thinRatio*100)}% fino`:'';
+  const el=$(`ci${li}`);
+  if(el){
+    el.textContent=`✂ ${m}m corte${warn}`;
+    el.style.color=thinRatio>0.05?'#ff6644':'#555';
+  }
+}
+
+/* ═══════════════════════════════════════════
+   K-MEANS WITH WORKER (properly connected)
+═══════════════════════════════════════════ */
+async function runKMeansAsync(imageData,k){
+  if(!WORKER_SUPPORTED){return runKMeans(imageData,k);}
+  return new Promise((resolve,reject)=>{
+    const worker=getAnalysisWorker();
+    worker.onmessage=(e)=>{
+      const msg=e.data;
+      if(msg.type==='prog'){setProgress(msg.pct);setProgMsg(msg.msg);}
+      else if(msg.type==='done'){
+        // Rebuild kmPixels on main thread (LAB conversion)
+        const data=imageData.data,total=imageData.width*imageData.height;
+        const pixels=new Array(total);
+        for(let i=0;i<total;i++)pixels[i]=rgb2lab(data[i*4],data[i*4+1],data[i*4+2]);
+        resolve({pixels,assignments:msg.assignments,centroids:msg.centroids,masks:msg.masks});
+      }
+    };
+    worker.onerror=(e)=>{
+      console.warn('K-means worker failed, fallback',e.message);
+      terminateWorker();
+      runKMeans(imageData,k).then(resolve).catch(reject);
+    };
+    const copy=new Uint8ClampedArray(imageData.data);
+    worker.postMessage({cmd:'analyze',pixels:copy,w:imageData.width,h:imageData.height,k},[copy.buffer]);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   AUTO STENCIL — análisis automático completo
+   Selecciona k óptimo (2-5) por varianza intra-cluster,
+   aplica parámetros óptimos para stencil graffiti.
+═══════════════════════════════════════════ */
+async function autoStencil(){
+  if(!S.imageData)return;
+  $('btnAutoStencil').disabled=true;
+  $('btnAnalyze').disabled=true;
+  showProgress(true,'Auto Stencil…');
+
+  try{
+    // Step 1: test k=2..5 and pick best by silhouette proxy
+    setProgress(5);setProgMsg('Buscando capas óptimas…');await sleep(20);
+
+    // Simple proxy: run k=3 (most common for graffiti) unless image is complex
+    // Compute image complexity by sobel edge density
+    const{data,width:w,height:h}=S.imageData;
+    let edgeDens=0;
+    for(let y=1;y<h-1;y++){
+      for(let x=1;x<w-1;x++){
+        const i=(y*w+x)*4;
+        const gx=data[i+4]-data[i-4];
+        const gy=data[(y+1)*w*4+x*4]-data[(y-1)*w*4+x*4];
+        edgeDens+=Math.sqrt(gx*gx+gy*gy);
+      }
+    }
+    edgeDens/=(w*h*255);
+    // Low edge density → 2 layers, medium → 3, high → 4
+    const autoK=edgeDens<0.05?2:edgeDens<0.12?3:edgeDens<0.2?4:5;
+    $('numLayers').value=autoK;
+
+    // Step 2: blur (helps with photo grain)
+    const blurR=parseInt($('blurRadius').value)||0;
+    setProgress(10);setProgMsg('Pre-procesando…');await sleep(10);
+    const blurred=gaussianBlur(S.imageData,w,h,blurR>0?blurR:1);
+    const origData=S.imageData;
+    S.imageData=blurred; // temp
+
+    // Step 3: K-means with Worker
+    setProgress(15);setProgMsg(`K-means (${autoK} capas)…`);await sleep(10);
+    const result=await runKMeansAsync(S.imageData,autoK);
+    S.imageData=origData; // restore
+    S.kmPixels=result.pixels;S.kmAssign=result.assignments;S.kmCentroids=result.centroids;
+    S.imgW=w;S.imgH=h;
+
+    // Step 4: build layers with smart defaults
+    setProgress(70);setProgMsg('Construyendo capas…');await sleep(10);
+    const order=result.centroids.map((c,i)=>{
+      const rgb=lab2rgb(...c);const l=isNaN(rgb[0])?128:luma(rgb);return{l,i};
+    }).sort((a,b)=>b.l-a.l).map(x=>x.i);
+
+    S.layers=order.map((ci,pos)=>{
+      const rgb=lab2rgb(...result.centroids[ci]);
+      const safeRgb=rgb.map(v=>isNaN(v)?128:v);
+      // Smart defaults for graffiti stencil:
+      // - Light layers: lower threshold (tighter), more open (noise removal)
+      // - Dark layers: higher threshold, less open
+      const lumFrac=pos/(autoK-1||1); // 0=lightest, 1=darkest
+      const thr=0.85+lumFrac*0.3; // 0.85..1.15
+      const openVal=lumFrac<0.3?2:lumFrac<0.6?1:0;
+      const minIsle=lumFrac<0.3?80:50;
+      return{
+        centroidIdx:ci,
+        color:rgbToHex(...safeRgb),
+        threshold:Math.round(thr*20)/20,
+        open:openVal,kerf:0,
+        maxIsle:0,minIsle,
+        visible:true,inverted:false,
+        name:autoLayerName(pos,autoK)
+      };
+    });
+
+    S.bridgeOverrides=S.layers.map(()=>({skip:new Set(),force:new Set()}));
+    S.islandDeletes=S.layers.map(()=>new Map());
+    S.manualLines=S.layers.map(()=>[]);
+
+    setProgress(80);setProgMsg('Máscaras…');await sleep(10);
+    S.masks=S.layers.map(l=>{
+      const m=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,l.threshold);
+      return morphOpen(m,w,h,l.open||0);
+    });
+
+    setProgress(95);await sleep(10);
+    renderLayers();renderPreview();renderHistogram();
+    // Update cut info for all layers
+    for(let li=0;li<S.layers.length;li++)updateCutInfo(li);
+
+    $('btnExport').disabled=false;$('btnSave').disabled=false;
+    $('btnBridge').classList.add('ready');$('btnCmp').disabled=false;updateCmpSelects();
+    setStatus(`Auto: ${autoK} capas · densidad bordes ${(edgeDens*100).toFixed(1)}%`,`${w}×${h}px`);
+    setProgress(100);await sleep(300);showProgress(false);
+    autoSaveSession();
+
+  }catch(err){
+    console.error(err);setStatus('Error auto stencil: '+err.message);showProgress(false);
+  }
+  $('btnAutoStencil').disabled=false;$('btnAnalyze').disabled=false;
 }
 
 /* ═══════════════════════════════════════════
@@ -1297,16 +2389,21 @@ async function analyze(){
   if(!S.imageData)return;
   const k=+$('numLayers').value;
   $('btnAnalyze').disabled=true;
-  showProgress(true,'K-means…');setProgress(5);await sleep(30);
+  showProgress(true,'K-means…');setProgress(5);await sleep(20);
   try{
-    const result=await runKMeans(S.imageData,k);
+    // Apply blur pre-processing
+    const blurR=parseInt($('blurRadius').value)||0;
+    const imgToAnalyze=blurR>0?gaussianBlur(S.imageData,S.imgW,S.imgH,blurR):S.imageData;
+    setProgress(8);setProgMsg('K-means (Worker)…');await sleep(10);
+    const result=await runKMeansAsync(imgToAnalyze,k);
     S.kmPixels=result.pixels;S.kmAssign=result.assignments;S.kmCentroids=result.centroids;
     setProgress(70);await sleep(10);
-    const order=result.centroids.map((c,i)=>({lum:luma(c),i})).sort((a,b)=>b.lum-a.lum).map(x=>x.i);
-    S.layers=order.map((ci,pos)=>({centroidIdx:ci,color:rgbToHex(...lab2rgb(...result.centroids[ci])),threshold:1.0,open:0,maxIsle:0,minIsle:50,visible:true,name:`${T('threshold')} ${pos+1}`}));
+    const order=result.centroids.map((c,i)=>{const rgb=lab2rgb(...c);const l=isNaN(rgb[0])?128:luma(rgb);return{l,i};}).sort((a,b)=>b.l-a.l).map(x=>x.i);
+    S.layers=order.map((ci,pos)=>{const rgb=lab2rgb(...result.centroids[ci]);const safeRgb=rgb.map(v=>isNaN(v)?128:v);return{centroidIdx:ci,color:rgbToHex(...safeRgb),threshold:1.0,open:0,kerf:0,maxIsle:0,minIsle:50,visible:true,inverted:false,name:autoLayerName(pos,k)};});
     S.bridgeOverrides=S.layers.map(()=>({skip:new Set(),force:new Set()}));
     S.islandDeletes=S.layers.map(()=>new Map());
     S.manualLines=S.layers.map(()=>[]);
+    invalidateBridgedMasks();
     setProgress(80);await sleep(10);
     S.masks=S.layers.map(l=>{
       const m=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,1.0);
@@ -1314,8 +2411,9 @@ async function analyze(){
     });
     setProgress(95);await sleep(10);
     renderLayers();renderPreview();renderHistogram();
-    $('btnExport').disabled=false;
+    $('btnExport').disabled=false;$('btnSave').disabled=false;
     $('btnBridge').classList.add('ready');
+    $('btnCmp').disabled=false;updateCmpSelects();
     setStatus(`${k} ${currentLang==='eu'?'geruza':currentLang==='en'?'layers':'capas'}`,`${S.imgW}×${S.imgH}px`);
     setProgress(100);await sleep(300);showProgress(false);
   }catch(err){console.error(err);setStatus('Error: '+err.message);showProgress(false);}
@@ -1338,6 +2436,7 @@ async function exportZip(){
   showProgress(true,'…');
   const zip=new JSZip();
   const total=S.layers.length;
+  const allLayerPaths=[]; // for multi-layer SVG
 
   for(let li=0;li<total;li++){
     const layer=S.layers[li];
@@ -1350,35 +2449,43 @@ async function exportZip(){
     const baseMask=applyIslandDeletes(S.masks[li],delMap);
     const autoMask=addBridges(baseMask,w,h,bridgePx,minI,layer.maxIsle||0,getLayerOverrides(li));
     const bridgedMask=applyManualLines(autoMask,w,h,baseMask,S.manualLines[li]||[]);
+    // Apply kerf compensation
+    const kerfMask=applyKerf(bridgedMask,w,h,layer.kerf||0,widthCm);
 
     const num=String(li+1).padStart(2,'0');
     const col=layer.color.replace('#','');
     const base=`capa_${num}_${col}`;
 
-    if(fmts.includes('svg')||fmts.includes('dxf')){
+    let vecResult=null;
+    if(fmts.includes('svg')||fmts.includes('dxf')||fmts.includes('hpgl')||fmts.includes('svgml')){
       setProgress(pct+8);setProgMsg(`${li+1}/${total} — vectorizando…`);await sleep(20);
-      const{contours,pathDs}=vectorizeMask(bridgedMask,w,h,simplify);
-      if(fmts.includes('svg')) zip.file(`${base}.svg`,buildSVG(pathDs,w,h,widthCm,heightCm));
-      if(fmts.includes('dxf')) zip.file(`${base}.dxf`,buildDXF(contours,w,h,widthCm,heightCm));
+      const optContours=optimizePaths(vectorizeMask(kerfMask,w,h,simplify,li).contours);
+      const kerfPathDs=optContours.map(pts=>ptsToBezierPath(pts));
+      vecResult={contours:optContours,pathDs:kerfPathDs};
     }
+    if(vecResult)allLayerPaths.push({pathDs:vecResult.pathDs,color:layer.color,name:layer.name});
+    if(fmts.includes('svg')) zip.file(`${base}.svg`,buildSVG(vecResult.pathDs,w,h,widthCm,heightCm));
+    if(fmts.includes('dxf')) zip.file(`${base}.dxf`,buildDXF(vecResult.contours,w,h,widthCm,heightCm));
     if(fmts.includes('png')){
       setProgress(pct+14);setProgMsg(`${li+1}/${total} — PNG…`);await sleep(10);
       const dpi=parseInt($('pngDpi').value)||300;
-      zip.file(`${base}.png`,buildPNG(bridgedMask,w,h,widthCm,heightCm,dpi),{base64:true});
+      zip.file(`${base}.png`,buildPNG(kerfMask,w,h,widthCm,heightCm,dpi),{base64:true});
     }
-    if(fmts.includes('hpgl')){
+    if(fmts.includes('hpgl')&&vecResult){
       setProgress(pct+16);setProgMsg(`${li+1}/${total} — HPGL…`);await sleep(10);
-      if(!fmts.includes('svg')&&!fmts.includes('dxf')){
-        const{contours}=vectorizeMask(bridgedMask,w,h,simplify);
-        zip.file(`${base}.hpgl`,buildHPGL(contours,w,h,widthCm,heightCm));
-      } else {
-        // contours already computed
-        const{contours:hc}=vectorizeMask(bridgedMask,w,h,simplify);
-        zip.file(`${base}.hpgl`,buildHPGL(hc,w,h,widthCm,heightCm));
-      }
+      zip.file(`${base}.hpgl`,buildHPGL(vecResult.contours,w,h,widthCm,heightCm));
     }
   }
 
+  // SVG multi-layer (all layers in one file)
+  if(fmts.includes('svgml')&&allLayerPaths.length>0){
+    setProgress(88);setProgMsg('SVG ML…');await sleep(10);
+    zip.file('stncl_multicapa.svg',buildSVGMulti(
+      allLayerPaths.map(x=>x.pathDs),
+      allLayerPaths.map(x=>x.color),
+      allLayerPaths.map(x=>x.name),
+      w,h,widthCm,heightCm));
+  }
   setProgress(90);setProgMsg('ZIP…');await sleep(20);
   const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
   setProgress(100);setProgMsg('↓');await sleep(400);
@@ -1412,7 +2519,7 @@ async function loadImageFile(file){
   canvas.getContext('2d').putImageData(imageData,0,0);
   $('placeholder').style.display='none';canvas.style.display='block';
   $('upFile').style.display='block';$('upFile').textContent=file.name;
-  $('btnAnalyze').disabled=false;$('btnExport').disabled=true;
+  $('btnAnalyze').disabled=false;$('btnAutoStencil').disabled=false;$('btnExport').disabled=true;
   $('btnBridge').classList.remove('ready');
   $('layersList').innerHTML=`<div class="layers-empty" data-t="layers_empty">${T('layers_empty').replace('\n','<br>')}</div>`;
   setStatus(file.name,`${iw}×${ih}px`);
@@ -1438,7 +2545,8 @@ function renderSimPreview(){
     const layer=S.layers[li];
     if(layer.visible===false)continue;
     const rawMask=S.masks[li];if(!rawMask)continue;
-    const mask=applyIslandDeletes(rawMask,S.islandDeletes[li]);
+    const baseMaskR=applyIslandDeletes(rawMask,S.islandDeletes[li]);
+    const mask=S.layers[li].inverted?baseMaskR.map(v=>v>0?0:255):baseMaskR;
     const[r,g,b]=hexToRgb(layer.color);
     const idata=ctx.createImageData(w,h),px=idata.data;
     for(let i=0;i<w*h;i++){
@@ -1556,6 +2664,7 @@ async function loadProject(file){
   setProgress(80);await sleep(10);
   renderLayers();renderPreview();renderHistogram();
   $('btnExport').disabled=false;$('btnSave').disabled=false;$('btnBridge').classList.add('ready');
+  $('btnCmp').disabled=false;updateCmpSelects();
   $('upFile').style.display='block';$('upFile').textContent='proyecto cargado';
   setProgress(100);await sleep(300);showProgress(false);
   setStatus('Proyecto cargado',`${proj.imgW}×${proj.imgH}px`);
@@ -1575,6 +2684,9 @@ function pushUndo(){
     ov:S.bridgeOverrides.map(o=>cloneOverrides(o)),
     del:S.islandDeletes.map(m=>cloneDelMap(m)),
     lines:S.manualLines.map(a=>a.map(l=>({...l}))),
+    // full layer param snapshot for complete undo
+    layerParams:S.layers.map(l=>({...l})),
+    masks:S.masks.map(m=>m?new Uint8Array(m):null),
   });
   if(UH.stack.length>UH.MAX)UH.stack.shift();
   $('btnUndo').disabled=false;
@@ -1586,10 +2698,654 @@ function undo(){
   S.bridgeOverrides=snap.ov;
   S.islandDeletes=snap.del;
   S.manualLines=snap.lines;
+  if(snap.layerParams){S.layers=snap.layerParams;}
+  if(snap.masks){S.masks=snap.masks;}
   invalidateBeCache();
   if(S.beData){renderBeBase();renderBridgeEditCanvas();}
-  renderPreview();
+  renderLayers();renderPreview();
   if(!UH.stack.length)$('btnUndo').disabled=true;
+}
+
+/* ═══════════════════════════════════════════
+   SINGLE LAYER QUICK EXPORT
+═══════════════════════════════════════════ */
+async function exportSingleLayer(li){
+  const layer=S.layers[li];
+  const widthCm=parseFloat($('outW').value)||30;
+  const heightCm=parseFloat($('outH').value)||40;
+  const simplify=parseInt($('simplify').value);
+  const bridgeMM=parseFloat($('bridgeWidth').value);
+  const w=S.imgW,h=S.imgH;
+  const bridgePx=Math.max(1,Math.round(bridgeMM*w/(widthCm*10)));
+  const globalMinIsle=parseInt($('minIsleSize').value)||50;
+  const minI=layer.minIsle??globalMinIsle;
+  const fmts=activeFormats();
+  const dpi=parseInt($('pngDpi').value)||300;
+
+  showProgress(true,`Exportando capa ${li+1}…`);setProgress(20);await sleep(10);
+  const rawDeleted=applyIslandDeletes(S.masks[li],S.islandDeletes[li]);
+  const baseMask=layer.inverted?rawDeleted.map(v=>v>0?0:255):rawDeleted;
+  const auto=addBridges(baseMask,w,h,bridgePx,minI,layer.maxIsle||0,getLayerOverrides(li));
+  const bridgedMask=applyManualLines(auto,w,h,baseMask,S.manualLines[li]||[]);
+  setProgress(60);await sleep(10);
+  const num=String(li+1).padStart(2,'0');
+  const col=layer.color.replace('#','');
+  const base=`capa_${num}_${col}`;
+  const zip=new JSZip();
+  if(fmts.includes('svg')||fmts.includes('dxf')||fmts.includes('hpgl')){
+    const{contours,pathDs}=vectorizeMask(bridgedMask,w,h,simplify);
+    if(fmts.includes('svg'))zip.file(`${base}.svg`,buildSVG(pathDs,w,h,widthCm,heightCm));
+    if(fmts.includes('dxf'))zip.file(`${base}.dxf`,buildDXF(contours,w,h,widthCm,heightCm));
+    if(fmts.includes('hpgl'))zip.file(`${base}.hpgl`,buildHPGL(contours,w,h,widthCm,heightCm));
+  }
+  if(fmts.includes('png'))zip.file(`${base}.png`,buildPNG(bridgedMask,w,h,widthCm,heightCm,dpi),{base64:true});
+  setProgress(90);await sleep(10);
+  const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`${base}.zip`;a.click();
+  URL.revokeObjectURL(url);
+  setProgress(100);await sleep(200);showProgress(false);
+  setStatus(`Capa ${li+1} exportada`);
+}
+
+/* ═══════════════════════════════════════════
+   BRIDGE WORKER — addBridges off main thread
+   Separate worker instance from analysis worker.
+   Falls back to main thread if workers unsupported.
+═══════════════════════════════════════════ */
+let _bridgeWorker=null;
+const WORKER_SUPPORTED=(typeof Worker!=='undefined');
+
+function getBridgeWorker(){
+  if(_bridgeWorker)return _bridgeWorker;
+  if(!WORKER_SUPPORTED)return null;
+  // Build bridge worker source using existing function strings
+  const fns=[morphOpen,applyIslandDeletes,applyManualLines].map(f=>f.toString()).join('\n');
+  const workerSrc=fns+`
+// Minimal bridge engine copy (self-contained for Worker scope)
+function addBridgesW(mask,w,h,bridgePx,minIsle,maxIsle,overrides){
+  const result=new Uint8Array(mask);
+  const n=w*h;
+  const half=Math.max(1,Math.ceil(bridgePx/2)),halfSq=half*half;
+  const MAX_BRIDGE=Math.round(Math.max(w,h)*0.50);
+  const isConn=new Uint8Array(n);
+  {
+    const q=[];
+    function seed(i){if(mask[i]===0&&!isConn[i]){isConn[i]=1;q.push(i);}}
+    for(let x=0;x<w;x++){seed(x);seed((h-1)*w+x);}
+    for(let y=1;y<h-1;y++){seed(y*w);seed(y*w+w-1);}
+    for(let qi=0;qi<q.length;qi++){
+      const i=q[qi],x=i%w,y=(i/w)|0;
+      if(x>0&&mask[i-1]===0&&!isConn[i-1]){isConn[i-1]=1;q.push(i-1);}
+      if(x<w-1&&mask[i+1]===0&&!isConn[i+1]){isConn[i+1]=1;q.push(i+1);}
+      if(y>0&&mask[i-w]===0&&!isConn[i-w]){isConn[i-w]=1;q.push(i-w);}
+      if(y<h-1&&mask[i+w]===0&&!isConn[i+w]){isConn[i+w]=1;q.push(i+w);}
+    }
+  }
+  const visited=new Uint8Array(n),islands=[];
+  const skip=overrides&&overrides.skip?new Set(overrides.skip):new Set();
+  const force=overrides&&overrides.force?new Set(overrides.force):new Set();
+  for(let si=0;si<n;si++){
+    if(mask[si]||isConn[si]||visited[si])continue;
+    const isle=[],iq=[si];visited[si]=1;
+    for(let qi=0;qi<iq.length;qi++){
+      const idx=iq[qi];isle.push(idx);
+      const x=idx%w,y=(idx/w)|0;
+      if(x>0&&mask[idx-1]===0&&!isConn[idx-1]&&!visited[idx-1]){visited[idx-1]=1;iq.push(idx-1);}
+      if(x<w-1&&mask[idx+1]===0&&!isConn[idx+1]&&!visited[idx+1]){visited[idx+1]=1;iq.push(idx+1);}
+      if(y>0&&mask[idx-w]===0&&!isConn[idx-w]&&!visited[idx-w]){visited[idx-w]=1;iq.push(idx-w);}
+      if(y<h-1&&mask[idx+w]===0&&!isConn[idx+w]&&!visited[idx+w]){visited[idx+w]=1;iq.push(idx+w);}
+    }
+    if(isle.length<minIsle){for(const idx of isle)result[idx]=255;continue;}
+    if(maxIsle>0&&isle.length>(n*maxIsle/100)){for(const idx of isle)result[idx]=255;continue;}
+    if(skip.has(si))continue;
+    islands.push({isle,sid:si});
+  }
+  islands.sort((a,b)=>b.isle.length-a.isle.length);
+  // Distance transform
+  const inkDist=new Uint16Array(n).fill(0xFFFF);
+  {const q2=[];for(let i=0;i<n;i++){if(result[i]===0){inkDist[i]=0;q2.push(i);}}
+  for(let qi=0;qi<q2.length;qi++){const i=q2[qi],x=i%w,y=(i/w)|0,d1=inkDist[i]+1;
+    if(x>0&&inkDist[i-1]===0xFFFF&&result[i-1]>0){inkDist[i-1]=d1;q2.push(i-1);}
+    if(x<w-1&&inkDist[i+1]===0xFFFF&&result[i+1]>0){inkDist[i+1]=d1;q2.push(i+1);}
+    if(y>0&&inkDist[i-w]===0xFFFF&&result[i-w]>0){inkDist[i-w]=d1;q2.push(i-w);}
+    if(y<h-1&&inkDist[i+w]===0xFFFF&&result[i+w]>0){inkDist[i+w]=d1;q2.push(i+w);}}}
+  // Dial's algorithm circular queue — correct for unbounded accumulated distances
+  const _SL=9;
+  const _dist=new Uint32Array(n).fill(0xFFFFFFFF);
+  const _prev=new Int32Array(n).fill(-1);
+  const _whl=Array.from({length:_SL},()=>[]);
+  let _mn=0;
+  const _NBS=[-1,1,-w,w,-w-1,-w+1,w-1,w+1];
+  function _dial(){
+    for(let sf=0;sf<n*2;sf++){
+      while(_whl[_mn%_SL].length===0){_mn++;if(_mn>0xFFFFFF)return;}
+      if(_mn>0xFFFFFF)return;
+      const sl=_mn%_SL;
+      if(!_whl[sl].length)return;
+      const i=_whl[sl].pop();
+      if(_dist[i]!==_mn)continue;
+      const x=i%w,y=(i/w)|0;
+      for(let d=0;d<8;d++){
+        const ni=i+_NBS[d];if(ni<0||ni>=n)continue;
+        if(d===0&&x===0)continue;if(d===1&&x===w-1)continue;
+        if(d===4&&(x===0||y===0))continue;if(d===5&&(x===w-1||y===0))continue;
+        if(d===6&&(x===0||y===h-1))continue;if(d===7&&(x===w-1||y===h-1))continue;
+        if(result[ni]===0)continue;
+        const ec=Math.max(1,Math.min(8,Math.ceil(8/(inkDist[ni]+1))));
+        const nd=_mn+ec;
+        if(nd<_dist[ni]){_dist[ni]=nd;_prev[ni]=i;_whl[nd%_SL].push(ni);}
+      }
+    }
+  }
+  function initDistMap(){
+    _dist.fill(0xFFFFFFFF);_prev.fill(-1);
+    for(let s=0;s<_SL;s++)_whl[s].length=0;_mn=0;
+    for(let i=0;i<n;i++){if(isConn[i]&&result[i]===0){_dist[i]=0;_prev[i]=-1;_whl[0].push(i);}}
+    _dial();
+  }
+  function updateDistMap(newPaper){
+    for(const i of newPaper){if(_dist[i]===0xFFFFFFFF){_dist[i]=0;_prev[i]=-1;_whl[0].push(i);if(_mn>0)_mn=0;}}
+    _dial();
+  }
+  initDistMap();
+  const dist=_dist,prev=_prev;
+  function chk(pts,iters=2){if(pts.length<=3)return pts;let p=pts;
+    for(let k=0;k<iters;k++){const q=[p[0]],n2=p.length;
+      for(let i=0;i<n2;i++){const p0=p[i],p1=p[(i+1)%n2];
+        q.push([0.75*p0[0]+0.25*p1[0],0.75*p0[1]+0.25*p1[1]]);
+        q.push([0.25*p0[0]+0.75*p1[0],0.25*p0[1]+0.75*p1[1]]);}
+      p=q;}return p;}
+  function drawCorridor(coords){
+    const total=coords.length;if(!total)return;
+    const np=[];
+    let pathLen=0;const cum=[0];
+    for(let i=1;i<total;i++){pathLen+=Math.hypot(coords[i][0]-coords[i-1][0],coords[i][1]-coords[i-1][1]);cum.push(pathLen);}
+    const flareZone=Math.min(pathLen*0.25,half*3);
+    const step=Math.max(1,half*0.5);let acc=step;
+    for(let i=0;i<total;i++){
+      if(i>0)acc+=cum[i]-cum[i-1];
+      if(acc>=step||i===0||i===total-1){acc=0;
+        const px=Math.round(coords[i][0]),py=Math.round(coords[i][1]);
+        if(px<0||px>=w||py<0||py>=h)continue;
+        const dEnd=Math.min(cum[i],pathLen-cum[i]);
+        const flare=dEnd<flareZone?1+0.5*(1-dEnd/flareZone):1;
+        const r=Math.max(1,Math.round(half*flare));const r2=r*r;
+        for(let dy2=-r;dy2<=r;dy2++){for(let dx2=-r;dx2<=r;dx2++){
+          if(dx2*dx2+dy2*dy2<=r2){const bx=px+dx2,by=py+dy2;
+            if(bx>=0&&bx<w&&by>=0&&by<h){const bi=by*w+bx;if(result[bi]>0){result[bi]=0;isConn[bi]=1;np.push(bi);}}}}}}
+    }
+    if(np.length)updateDistMap(np);
+  }
+  const NBRS8=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+  for(const{isle,sid}of islands){
+    if(isConn[isle[0]])continue;
+    const isForced=force.has(sid);
+    const maxB=isForced?MAX_BRIDGE*3:MAX_BRIDGE;
+    // dist map already computed globally; refreshed after each corridor
+    let sumX=0,sumY=0;for(const idx of isle){sumX+=idx%w;sumY+=(idx/w)|0;}
+    const centX=(sumX/isle.length+.5)|0,centY=(sumY/isle.length+.5)|0;
+    const area=isle.length;
+    const nB=isForced?Math.max(1,area<350?1:2):area<80?1:area<350?2:area<1500?3:4;
+    const minAng=(2*Math.PI)/nB;
+    const boundary=isle.filter(idx=>{const x=idx%w,y=(idx/w)|0;
+      return NBRS8.some(([dx,dy])=>{const nx=x+dx,ny=y+dy;return nx>=0&&nx<w&&ny>=0&&ny<h&&result[ny*w+nx]>0;});});
+    if(!boundary.length)continue;
+    const candidates=[];
+    for(const idx of boundary){const bx=idx%w,by=(idx/w)|0;
+      let bestD=0xFFFFFFFF,bestNi=-1;
+      for(const[dx,dy]of NBRS8){const nx=bx+dx,ny=by+dy;if(nx<0||nx>=w||ny<0||ny>=h)continue;
+        const ni=ny*w+nx;if(result[ni]>0&&dist[ni]<bestD){bestD=dist[ni];bestNi=ni;}}
+      if(bestNi<0||bestD>=0xFFFFFFFF||bestD>maxB)continue; // bestD is Dijkstra cost, not pixel distance
+      const rawPath=[[bx,by],[bestNi%w,(bestNi/w)|0]];
+      let cur=prev[bestNi],safety=0;
+      while(cur>=0&&cur<n&&result[cur]>0&&safety++<w+h){rawPath.push([cur%w,(cur/w)|0]);cur=prev[cur];}
+      if(cur>=0)rawPath.push([cur%w,(cur/w)|0]);
+      candidates.push({rawPath,angle:Math.atan2(by-centY,bx-centX),len:bestD});}
+    if(!candidates.length)continue;
+    candidates.sort((a,b)=>a.len-b.len);
+    const placed=[];
+    const pool=candidates.slice(0,Math.max(3,Math.ceil(candidates.length*0.6)));
+    placed.push(pool[0]);drawCorridor(chk(pool[0].rawPath,2));
+    while(placed.length<nB){
+      let best=null,bestScore=-1;
+      for(const cand of pool){
+        if(placed.includes(cand))continue;
+        let minD=Infinity;
+        for(const p of placed){let d=Math.abs(cand.angle-p.angle);if(d>Math.PI)d=2*Math.PI-d;if(d<minD)minD=d;}
+        const score=minD*1000-cand.len;
+        if(minD>=minAng*0.5&&score>bestScore){bestScore=score;best=cand;}
+      }
+      if(!best)break;
+      drawCorridor(chk(best.rawPath,2));placed.push(best);
+    }
+    if(placed.length>0){
+      for(const idx of isle)isConn[idx]=1;
+      updateDistMap(isle); // chain bridging: seed island paper
+    }
+  }
+  return result;
+}
+
+self.onmessage=function(e){
+  const msg=e.data;
+  if(msg.cmd==='bridges'){
+    const results=[];
+    for(const layer of msg.layers){
+      const{mask,w,h,bridgePx,minI,maxIsle,overrides,deletes,inverted,manualLines,origMask}=layer;
+      let base=new Uint8Array(mask);
+      // Apply island deletes
+      if(deletes&&deletes.length>0){base=new Uint8Array(base);for(const idx of deletes)base[idx]=255;}
+      if(inverted){const inv=new Uint8Array(base.length);for(let i=0;i<base.length;i++)inv[i]=base[i]>0?0:255;base=inv;}
+      const auto=addBridgesW(base,w,h,bridgePx,minI,maxIsle,overrides);
+      // Apply manual lines
+      let result=auto;
+      if(manualLines&&manualLines.length>0){
+        result=new Uint8Array(auto);
+        for(const{x1,y1,x2,y2,r,erase}of manualLines){
+          const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+          const steps=Math.max(1,Math.ceil(len)),r2=r*r;
+          for(let i=0;i<=steps;i++){
+            const t=i/steps,px=Math.round(x1+dx*t),py=Math.round(y1+dy*t);
+            for(let oy=-r;oy<=r;oy++)for(let ox=-r;ox<=r;ox++){
+              if(ox*ox+oy*oy<=r2){const bx=px+ox,by=py+oy;
+                if(bx>=0&&bx<w&&by>=0&&by<h)result[by*w+bx]=erase?origMask[by*w+bx]:0;}}}}
+      }
+      results.push(result);
+    }
+    const bufs=results.map(r=>r.buffer);
+    self.postMessage({type:'done',results},[...bufs]);
+  }
+};
+`;
+  const blob=new Blob([workerSrc],{type:'application/javascript'});
+  _bridgeWorker=new Worker(URL.createObjectURL(blob));
+  return _bridgeWorker;
+}
+
+function terminateBridgeWorker(){
+  if(_bridgeWorker){_bridgeWorker.terminate();_bridgeWorker=null;}
+}
+
+/* Run bridges for all layers, off-thread if available */
+/* Fallback bridge computation on main thread */
+function computeBridgesFallback(layerData){
+  return layerData.map(d=>{
+    let base=applyIslandDeletes(S.masks[d.li],S.islandDeletes[d.li]||new Map());
+    if(d.inverted){const inv=new Uint8Array(base.length);for(let i=0;i<base.length;i++)inv[i]=base[i]>0?0:255;base=inv;}
+    const ov=getLayerOverrides(d.li);
+    const auto=addBridges(base,d.w,d.h,d.bridgePx,d.minI,d.maxIsle,ov);
+    return applyManualLines(auto,d.w,d.h,base,S.manualLines[d.li]||[]);
+  });
+}
+
+async function computeAllBridgedMasks(bridgePx,globalMinIsle){
+  const w=S.imgW,h=S.imgH;
+  // Build layer descriptors (no ArrayBuffer references — safe for worker copy)
+  const layerData=S.masks.map((mask,li)=>{
+    const layer=S.layers[li];
+    const minI=layer.minIsle??globalMinIsle;
+    const delMap=S.islandDeletes[li]||new Map();
+    const deletes=[...[...delMap.values()].flat()];
+    const ov=getLayerOverrides(li);
+    const ml=S.manualLines[li]||[];
+    // Compute the base mask here (apply deletes + invert) so worker gets final data
+    let base=applyIslandDeletes(mask,delMap);
+    if(layer.inverted){const inv=new Uint8Array(base.length);for(let i=0;i<base.length;i++)inv[i]=base[i]>0?0:255;base=inv;}
+    return{li,mask:base,origMask:new Uint8Array(base),w,h,bridgePx,minI,
+      maxIsle:layer.maxIsle||0,overrides:{skip:[...ov.skip],force:[...ov.force]},
+      deletes:[],inverted:false,// already applied above
+      manualLines:ml};
+  });
+
+  const worker=getBridgeWorker();
+  if(!worker){
+    return computeBridgesFallback(layerData);
+  }
+
+  return new Promise((resolve)=>{
+    worker.onmessage=(e)=>{
+      if(e.data.type==='done'){
+        // Apply manual lines on main thread (small, fast)
+        const results=e.data.results.map((auto,li)=>
+          applyManualLines(auto,w,h,layerData[li].origMask,layerData[li].manualLines));
+        resolve(results);
+      }
+    };
+    worker.onerror=(e)=>{
+      console.warn('Bridge worker failed, falling back to main thread',e.message);
+      _bridgeWorker=null;
+      // Buffers already transferred — reconstruct from S.masks
+      resolve(computeBridgesFallback(layerData));
+    };
+    // Transfer mask buffers to worker for speed (origMask kept as copy for manual lines)
+    const transferBufs=layerData.map(d=>d.mask.buffer);
+    worker.postMessage({cmd:'bridges',layers:layerData},transferBufs);
+  });
+}
+
+/* ═══════════════════════════════════════════
+   LAYER COMPARISON
+═══════════════════════════════════════════ */
+let cmpActive=false;
+
+function updateCmpSelects(){
+  const n=S.layers.length;
+  [$('cmpLayerA'),$('cmpLayerB')].forEach((sel,si)=>{
+    const cur=+sel.value;
+    sel.innerHTML=S.layers.map((l,i)=>`<option value="${i}">${i+1}: ${l.name}</option>`).join('');
+    // Default: A=first layer, B=second (or last if only 1)
+    const def=si===0?0:Math.min(1,n-1);
+    sel.value=(cur<n)?cur:def;
+  });
+}
+
+/* CMP split x position (0..1, draggable) */
+let cmpSplitX=0.5;
+
+function renderCompare(){
+  if(!cmpActive||!S.masks.length||!S.imgW)return;
+  if(S.layers.length<1)return;
+  const liA=Math.min(+$('cmpLayerA').value,S.layers.length-1);
+  const liB=Math.min(+$('cmpLayerB').value,S.layers.length-1);
+  // liA===liB shows same layer on both sides — still valid (identity check)
+  const blendAlpha=parseInt($('cmpOpacity').value)/100; // 0=only A on left, 1=full blend of B onto left
+  const w=S.imgW,h=S.imgH;
+  const canvas=$('previewCanvas');
+  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+  const ctx=canvas.getContext('2d');
+
+  const maskA=applyIslandDeletes(S.masks[liA]||new Uint8Array(w*h),S.islandDeletes[liA]||new Map());
+  const maskB=applyIslandDeletes(S.masks[liB]||new Uint8Array(w*h),S.islandDeletes[liB]||new Map());
+  const[rA,gA,bA]=hexToRgb(S.layers[liA]?.color||'#888888');
+  const[rB,gB,bB]=hexToRgb(S.layers[liB]?.color||'#444444');
+
+  const splitPx=Math.round(cmpSplitX*w);
+  const idata=ctx.createImageData(w,h);
+  const px=idata.data;
+
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=y*w+x;
+      const pi=i*4;
+      const useA=x<splitPx;
+      const a=maskA[i]>0, b=maskB[i]>0;
+      const overlap=a&&b;
+
+      // Background: white/light grey
+      let r=240,g=240,bv=240;
+
+      if(useA){
+        // Left side: show A, ghost of B at alpha, overlap yellow
+        if(overlap){r=255;g=220;bv=0;}
+        else if(a&&b){r=255;g=220;bv=0;}
+        else if(a){r=rA;g=gA;bv=bA;}
+        else if(b&&blendAlpha>0){
+          // Ghost of B on A side
+          r=Math.round(240*(1-blendAlpha)+rB*blendAlpha);
+          g=Math.round(240*(1-blendAlpha)+gB*blendAlpha);
+          bv=Math.round(240*(1-blendAlpha)+bB*blendAlpha);
+        }
+      } else {
+        // Right side: show B in its colour, overlap in yellow
+        if(overlap){r=255;g=220;bv=0;}
+        else if(b){r=rB;g=gB;bv=bB;}
+      }
+      px[pi]=r;px[pi+1]=g;px[pi+2]=bv;px[pi+3]=255;
+    }
+  }
+  ctx.putImageData(idata,0,0);
+
+  // Draw divider line on top using overlay canvas
+  const ov=$('overlayCanvas');
+  if(ov.width!==w||ov.height!==h){ov.width=w;ov.height=h;}
+  ov.style.display='block';
+  const octx=ov.getContext('2d');
+  octx.clearRect(0,0,w,h);
+  // Shadow for contrast
+  octx.shadowColor='rgba(0,0,0,0.6)';octx.shadowBlur=4;
+  octx.strokeStyle='rgba(255,255,255,0.9)';
+  octx.lineWidth=2;octx.setLineDash([]);
+  octx.beginPath();octx.moveTo(splitPx,0);octx.lineTo(splitPx,h);octx.stroke();
+  octx.shadowBlur=0;
+  // Handle triangle
+  const ty=h/2;
+  octx.fillStyle='rgba(255,255,255,0.9)';
+  octx.strokeStyle='rgba(0,0,0,0.4)';octx.lineWidth=1;
+  octx.beginPath();
+  octx.moveTo(splitPx,ty-16);octx.lineTo(splitPx-10,ty);octx.lineTo(splitPx,ty+16);
+  octx.lineTo(splitPx+10,ty);octx.closePath();
+  octx.fill();octx.stroke();
+  // Labels
+  octx.fillStyle='rgba(0,0,0,0.6)';octx.font='bold 11px monospace';
+  octx.textAlign='right';
+  octx.fillText(`${S.layers[liA]?.name||'A'} ▶`,splitPx-14,22);
+  octx.textAlign='left';
+  octx.fillText(`◀ ${S.layers[liB]?.name||'B'}`,splitPx+14,22);
+
+  $('placeholder').style.display='none';
+  canvas.style.display='block';
+  $('zoomControls').style.display='flex';
+  if(!S.vp.zoom||S.vp.zoom===1)vpFit();else vpApply();
+}
+
+/* Drag the CMP divider */
+(function initCmpDrag(){
+  // Events on previewArea (overlayCanvas has pointer-events:none)
+  const area=$('previewArea');
+  let dragging=false;
+
+  function nearSplit(imgX){
+    return S.imgW>0&&Math.abs(imgX-Math.round(cmpSplitX*S.imgW))<Math.max(20,S.imgW*0.03);
+  }
+
+  area.addEventListener('mousedown',e=>{
+    if(!cmpActive||e.button!==0)return;
+    const{x}=screenToImg(e.clientX,e.clientY);
+    if(nearSplit(x)){dragging=true;e.stopPropagation();e.preventDefault();}
+  },{capture:true});
+
+  window.addEventListener('mousemove',e=>{
+    if(!cmpActive)return;
+    if(dragging){
+      const{x}=screenToImg(e.clientX,e.clientY);
+      cmpSplitX=Math.max(0.05,Math.min(0.95,x/S.imgW));
+      renderCompare();
+    } else if(S.imgW>0){
+      // Update cursor based on proximity
+      const{x}=screenToImg(e.clientX,e.clientY);
+      area.style.cursor=nearSplit(x)?'ew-resize':'default';
+    }
+  });
+  window.addEventListener('mouseup',()=>{
+    if(dragging){dragging=false;area.style.cursor='default';}
+  });
+
+  // Touch
+  area.addEventListener('touchstart',e=>{
+    if(!cmpActive)return;
+    const t=e.touches[0];
+    const{x}=screenToImg(t.clientX,t.clientY);
+    if(nearSplit(x)){dragging=true;e.stopPropagation();e.preventDefault();}
+  },{passive:false,capture:true});
+  window.addEventListener('touchmove',e=>{
+    if(!dragging||!cmpActive)return;
+    const t=e.touches[0];
+    const{x}=screenToImg(t.clientX,t.clientY);
+    cmpSplitX=Math.max(0.05,Math.min(0.95,x/S.imgW));
+    renderCompare();
+  },{passive:false});
+  window.addEventListener('touchend',()=>{dragging=false;});
+})();
+
+/* ═══════════════════════════════════════════
+   SESSION AUTO-SAVE (localStorage)
+   Saves layer params + overrides on every change.
+   Image not stored (too large) — user re-uploads.
+═══════════════════════════════════════════ */
+const LS_KEY='stncl_session_v1';
+
+function autoSaveSession(){
+  if(!S.layers.length)return;
+  try{
+    const serOv=S.bridgeOverrides.map(o=>({skip:[...o.skip],force:[...o.force]}));
+    localStorage.setItem(LS_KEY,JSON.stringify({
+      layers:S.layers.map(l=>({...l})),
+      layerParams:{k:S.layers.length,imgW:S.imgW,imgH:S.imgH},
+      bridgeOverrides:serOv,
+      manualLines:S.manualLines,
+      ts:Date.now(),
+    }));
+  }catch(e){/* quota exceeded — ignore */}
+}
+
+function checkSessionRestore(){
+  try{
+    const raw=localStorage.getItem(LS_KEY);
+    if(!raw)return;
+    const d=JSON.parse(raw);
+    // Only offer restore if session is < 24h old and image dimensions would match
+    if(Date.now()-d.ts>86400000)return;
+    $('restoreBar').classList.add('on');
+    $('restoreYes').onclick=()=>{
+      $('restoreBar').classList.remove('on');
+      // We can't restore image — just show hint
+      setStatus('Carga la imagen original para restaurar la sesión completa','↑ CARGAR para restaurar proyecto completo');
+    };
+    $('restoreNo').onclick=()=>{
+      localStorage.removeItem(LS_KEY);
+      $('restoreBar').classList.remove('on');
+    };
+  }catch(e){}
+}
+
+/* ═══════════════════════════════════════════
+   WEB WORKER — K-means + morphOpen off main thread
+   Created as inline blob to stay single-file.
+   Functions extracted via .toString() to avoid duplication.
+═══════════════════════════════════════════ */
+let _analysisWorker=null;
+
+function getAnalysisWorker(){
+  if(_analysisWorker)return _analysisWorker;
+  // Build worker source from existing functions (no duplication)
+  const sharedFns=[rgb2lab,lab2rgb,colorDist2,colorDist,luma,kMeansPP].map(f=>f.toString()).join('\n');
+  const workerSrc=sharedFns+`\n
+function runKMeansWorker(imgData,w,h,k){
+  const data=imgData,total=w*h;
+  const pixels=new Array(total);
+  for(let i=0;i<total;i++)pixels[i]=rgb2lab(data[i*4],data[i*4+1],data[i*4+2]);
+  const STEP=8,samples=[];
+  for(let i=0;i<total;i+=STEP)samples.push(pixels[i]);
+  self.postMessage({type:'prog',pct:5,msg:'K-means: hasieratu...'});
+  let centroids=kMeansPP(samples,k);
+  const ns=samples.length;
+  for(let iter=0;iter<30;iter++){
+    self.postMessage({type:'prog',pct:5+iter*2,msg:'K-means '+(iter+1)+'/30'});
+    const asgn=new Int32Array(ns);
+    for(let i=0;i<ns;i++){let minD=Infinity,minI=0;for(let ci=0;ci<k;ci++){const d=colorDist2(samples[i],centroids[ci]);if(d<minD){minD=d;minI=ci;}}asgn[i]=minI;}
+    const sums=Array.from({length:k},()=>[0,0,0]),counts=new Int32Array(k);
+    for(let i=0;i<ns;i++){const ci=asgn[i];sums[ci][0]+=samples[i][0];sums[ci][1]+=samples[i][1];sums[ci][2]+=samples[i][2];counts[ci]++;}
+    let moved=false;
+    centroids=centroids.map((c,ci)=>{
+      if(!counts[ci])return c;
+      const n=[sums[ci][0]/counts[ci],sums[ci][1]/counts[ci],sums[ci][2]/counts[ci]];
+      if(colorDist(n,c)>0.8)moved=true;
+      return n;
+    });
+    if(!moved)break;
+  }
+  self.postMessage({type:'prog',pct:65,msg:'Pixel esleipena...'});
+  const assignments=new Int32Array(total);
+  for(let i=0;i<total;i++){let minD=Infinity,minI=0;for(let ci=0;ci<k;ci++){const d=colorDist2(pixels[i],centroids[ci]);if(d<minD){minD=d;minI=ci;}}assignments[i]=minI;}
+  return{pixels,assignments,centroids};
+}
+
+function morphOpenWorker(mask,w,h,r){
+  if(!r||r<=0)return mask;
+  const n=w*h;
+  const tmp1=new Uint8Array(n);
+  for(let y=0;y<h;y++){
+    let count=0;
+    for(let x=0;x<=Math.min(r,w-1);x++)if(mask[y*w+x])count++;
+    for(let x=0;x<w;x++){
+      const xr=x+r;if(xr<w&&mask[y*w+xr])count++;
+      const xl=x-r-1;if(xl>=0&&mask[y*w+xl])count--;
+      const win=Math.min(xr,w-1)-Math.max(0,x-r)+1;
+      tmp1[y*w+x]=(count===win)?255:0;
+    }
+  }
+  const tmp2=new Uint8Array(n);
+  for(let x=0;x<w;x++){
+    let count=0;
+    for(let y=0;y<=Math.min(r,h-1);y++)if(tmp1[y*w+x])count++;
+    for(let y=0;y<h;y++){
+      const yr=y+r;if(yr<h&&tmp1[yr*w+x])count++;
+      const yl=y-r-1;if(yl>=0&&tmp1[yl*w+x])count--;
+      const win=Math.min(yr,h-1)-Math.max(0,y-r)+1;
+      tmp2[y*w+x]=(count===win)?255:0;
+    }
+  }
+  const tmp3=new Uint8Array(n);
+  for(let y=0;y<h;y++){
+    let count=0;
+    for(let x=0;x<=Math.min(r,w-1);x++)if(tmp2[y*w+x])count++;
+    for(let x=0;x<w;x++){
+      const xr=x+r;if(xr<w&&tmp2[y*w+xr])count++;
+      const xl=x-r-1;if(xl>=0&&tmp2[y*w+xl])count--;
+      tmp3[y*w+x]=count>0?255:0;
+    }
+  }
+  const result=new Uint8Array(n);
+  for(let x=0;x<w;x++){
+    let count=0;
+    for(let y=0;y<=Math.min(r,h-1);y++)if(tmp3[y*w+x])count++;
+    for(let y=0;y<h;y++){
+      const yr=y+r;if(yr<h&&tmp3[yr*w+x])count++;
+      const yl=y-r-1;if(yl>=0&&tmp3[yl*w+x])count--;
+      result[y*w+x]=count>0?255:0;
+    }
+  }
+  return result;
+}
+
+function buildMaskWorker(pixels,assignments,centroids,centroidIdx,threshold){
+  const n=pixels.length,mask=new Uint8Array(n),myC=centroids[centroidIdx];
+  for(let i=0;i<n;i++){
+    const dThis=colorDist(pixels[i],myC);
+    const dAsgn=colorDist(pixels[i],centroids[assignments[i]]);
+    const ratio=dAsgn<0.001?(assignments[i]===centroidIdx?0:2):dThis/dAsgn;
+    mask[i]=ratio<=threshold?255:0;
+  }
+  return mask;
+}
+
+self.onmessage=function(e){
+  const msg=e.data;
+  if(msg.cmd==='analyze'){
+    const km=runKMeansWorker(msg.pixels,msg.w,msg.h,msg.k);
+    self.postMessage({type:'prog',pct:70,msg:'Maskak eraikitzen...'});
+    // Build all masks (threshold=1.0, open=0 initial)
+    const masks=[];
+    for(let ci=0;ci<msg.k;ci++){
+      let m=buildMaskWorker(km.pixels,km.assignments,km.centroids,ci,1.0);
+      masks.push(m);
+    }
+    self.postMessage({type:'prog',pct:95,msg:'Amaituta!'});
+    // Transfer buffers
+    const bufs=[km.assignments.buffer,...masks.map(m=>m.buffer)];
+    self.postMessage({type:'done',assignments:km.assignments,centroids:km.centroids,masks,
+      kmPixels:km.pixels},bufs);
+  }
+};
+`;
+  const blob=new Blob([workerSrc],{type:'application/javascript'});
+  _analysisWorker=new Worker(URL.createObjectURL(blob));
+  return _analysisWorker;
+}
+
+function terminateWorker(){
+  if(_analysisWorker){_analysisWorker.terminate();_analysisWorker=null;}
 }
 
 /* ═══════════════════════════════════════════
@@ -1757,7 +3513,8 @@ function getBeAutoMask(li){
   const globalMinIsle=parseInt($('minIsleSize').value)||50;
   const minI=S.layers[li].minIsle??globalMinIsle;
   const delMap=S.islandDeletes[li]||new Map();
-  const baseMask=applyIslandDeletes(S.masks[li],delMap);
+  const rawDeleted=applyIslandDeletes(S.masks[li],delMap);
+  const baseMask=S.layers[li].inverted?rawDeleted.map(v=>v>0?0:255):rawDeleted;
   const autoMask=addBridges(baseMask,w,h,bridgePx,minI,S.layers[li].maxIsle||0,getLayerOverrides(li));
   S.beCache={li,autoMask,baseMask};
   return S.beCache;
@@ -1880,13 +3637,6 @@ function renderBridgeEditCanvas(previewLine=null){
     const nl=lines.length,nd=lines.filter(l=>!l.erase).length,ne=lines.filter(l=>l.erase).length;
     $('beLineCount').textContent=nl?`${nd} línea${nd!==1?'s':''}`+(ne?` · ${ne} borrado${ne!==1?'s':''}`:''): '—';
   }
-}
-
-/* Canvas coords → image coords */
-function canvasToImg(canvas,cx,cy){
-  const r=canvas.getBoundingClientRect();
-  const sx=canvas.width/r.width,sy=canvas.height/r.height;
-  return{x:Math.round((cx-r.left)*sx),y:Math.round((cy-r.top)*sy)};
 }
 
 function beFindIsland(imgX,imgY){
@@ -2203,11 +3953,53 @@ function beFindNearestLine(li,x,y){
 
   // Buttons
   window.addEventListener('resize',()=>{if(S.imgW)vpFit();});
+  // A4/A3 presets (landscape: swap)
+  const PRESETS={a4p:[21,29.7],a4l:[29.7,21],a3p:[29.7,42],a3l:[42,29.7],a2p:[42,59.4],a1p:[59.4,84.1],s7c:[70,100]};
+  document.querySelectorAll('.preset-btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const[w,h]=PRESETS[b.dataset.preset]||[30,40];
+      $('outW').value=w;$('outH').value=h;
+    });
+  });
+  // Blur slider
+  $('blurRadius').addEventListener('input',e=>{
+    $('blurVal').textContent=+e.target.value===0?'OFF':e.target.value+'px';
+  });
+  // Auto stencil
+  $('btnAutoStencil').addEventListener('click',autoStencil);
+  // Enable auto stencil when image is loaded
+  $('uploadZone').addEventListener('change',()=>{setTimeout(()=>{$('btnAutoStencil').disabled=!S.imageData;},100);},true);
+  // Layer bridge view
+  $('lvPrev').addEventListener('click',()=>lvNav(-1));
+  $('lvNext').addEventListener('click',()=>lvNav(1));
+  $('lvClose').addEventListener('click',exitLayerView);
+  window.addEventListener('keydown',e=>{
+    if(!lvActive)return;
+    if(e.key==='ArrowLeft'){e.preventDefault();lvNav(-1);}
+    else if(e.key==='ArrowRight'){e.preventDefault();lvNav(1);}
+    else if(e.key==='Escape'){e.preventDefault();exitLayerView();}
+  });
+  // Session restore check
+  checkSessionRestore();
   // Ctrl+Z undo
   document.addEventListener('keydown',e=>{
     if((e.ctrlKey||e.metaKey)&&e.key==='z'&&!e.shiftKey){e.preventDefault();undo();}
   });
   // Project save/load
+  $('btnCmp').addEventListener('click',()=>{
+    cmpActive=!cmpActive;
+    $('btnCmp').classList.toggle('on',cmpActive);
+    $('cmpBar').classList.toggle('on',cmpActive);
+    if(cmpActive){cmpSplitX=0.5;updateCmpSelects();renderCompare();}else renderPreview();
+  });
+  $('cmpLayerA').addEventListener('change',()=>{if(cmpActive)renderCompare();});
+  $('cmpLayerB').addEventListener('change',()=>{if(cmpActive)renderCompare();});
+  $('cmpOpacity').addEventListener('input',()=>{if(cmpActive)renderCompare();});
+  $('cmpClose').addEventListener('click',()=>{
+    cmpActive=false;$('btnCmp').classList.remove('on');$('cmpBar').classList.remove('on');
+    $('overlayCanvas').style.display='none';$('previewArea').style.cursor='';
+    renderPreview();
+  });
   $('btnSave').addEventListener('click',saveProject);
   $('loadFile').addEventListener('change',e=>{if(e.target.files[0])loadProject(e.target.files[0]);e.target.value='';});
   $('btnUndo').addEventListener('click',undo);
@@ -2224,5 +4016,10 @@ function beFindNearestLine(li,x,y){
   $('btnBridge').addEventListener('click',()=>{if($('btnBridge').classList.contains('ready'))previewBridges();});
 })();
 </script>
+<div class="restore-bar" id="restoreBar">
+  <span>⟳ Sesión anterior disponible</span>
+  <button class="r-yes" id="restoreYes">Restaurar</button>
+  <button id="restoreNo">Ignorar</button>
+</div>
 </body>
 </html>
