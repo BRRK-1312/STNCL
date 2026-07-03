@@ -263,6 +263,7 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
   cursor:pointer;transition:all .15s;text-align:center;margin-top:6px}
 .auto-btn:hover{background:rgba(255,215,0,.08)}
 .auto-btn:active{background:rgba(255,215,0,.15)}
+.auto-btn.stack-on{background:rgba(102,204,170,.15)!important;box-shadow:0 0 8px rgba(102,204,170,.3)}
 /* ── BLUR CTRL ── */
 .blur-row{display:flex;align-items:center;gap:5px;margin-top:3px}
 .blur-lbl{font-size:7px;letter-spacing:1px;color:#777;white-space:nowrap}
@@ -324,6 +325,7 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
       </div>
       <button class="btn-run" id="btnAnalyze" disabled data-t="btn_analyze">ANALIZAR</button>
       <button class="auto-btn" id="btnAutoStencil" disabled>⬡ AUTO STENCIL</button>
+      <button class="auto-btn" id="btnStack" style="border-color:#66ccaa;color:#66ccaa;margin-top:4px" title="Cada plantilla incluye las zonas de las capas superiores: capa 1 = silueta completa, las siguientes añaden detalle encima. Menos islas, sin huecos por desalineación.">⬒ SUPERPOSICIÓN: OFF</button>
     </div>
 
     <div class="sec">
@@ -571,6 +573,7 @@ const S = {
   manualLines:[],     // per layer: [{x1,y1,x2,y2,r}]  (drawn lines)
   beCache:null,       // {li, autoMask} — invalidated on param change
   vp:{zoom:1,panX:0,panY:0}, // viewport state
+  stackMode:false, // superposición acumulativa (stack painting)
   beData:null         // active bridge edit state + {tool,lineStart}
 };
 
@@ -1691,8 +1694,8 @@ function renderPreview(){
   for(let li=0;li<S.layers.length;li++){
     if(S.layers[li].visible===false)continue;
     const rawMask=S.masks[li];if(!rawMask)continue;
-    const baseMaskR=applyIslandDeletes(rawMask,S.islandDeletes[li]);
-    const mask=S.layers[li].inverted?baseMaskR.map(v=>v>0?0:255):baseMaskR;
+    // NOTE: inversion already applied in rebuildLayerMask
+    const mask=applyIslandDeletes(rawMask,S.islandDeletes[li]);
     const[r,g,b]=hexToRgb(S.layers[li].color);
     for(let i=0;i<w*h;i++){if(mask[i]){px[i*4]=r;px[i*4+1]=g;px[i*4+2]=b;px[i*4+3]=255;}}
   }
@@ -1744,6 +1747,11 @@ function renderLayers(){
           <span class="thr-val" id="ov${idx}" style="color:#e8a020">${openV===0?'OFF':openV+'px'}</span>
         </div>
         <div class="thr-row">
+          <span class="thr-lbl" style="font-size:6px;letter-spacing:.5px;color:#cc66ff">DETALLE</span>
+          <input type="range" min="0" max="400" step="10" value="${layer.detail??0}" data-li="${idx}" data-role="detail" style="flex:1">
+          <span class="thr-val" id="dv${idx}" style="color:#cc66ff">${(layer.detail??0)===0?'OFF':(layer.detail??0)+'px²'}</span>
+        </div>
+        <div class="thr-row">
           <span class="thr-lbl kerf" style="font-size:6px;letter-spacing:.5px">KERF</span>
           <input type="range" min="-2" max="2" step="0.1" value="${(layer.kerf??0).toFixed(1)}" data-li="${idx}" data-role="kerf" style="flex:1">
           <span class="thr-val kerf-val" id="kv${idx}">${(layer.kerf??0)===0?'OFF':(layer.kerf??0).toFixed(1)+'mm'}</span>
@@ -1778,18 +1786,24 @@ function renderLayers(){
           pushUndo();
           S.layers[li].threshold=val;
           $(`tv${li}`).textContent=val.toFixed(2);
-          const raw=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,S.layers[li].centroidIdx,val);
-          S.masks[li]=morphOpen(raw,S.imgW,S.imgH,S.layers[li].open||0);
+          S.masks[li]=rebuildLayerMask(li);
           invalidateBeCache();VEC_CACHE.delete(li);invalidateBridgedMasks();
           autoSaveSession();renderPreview();setTimeout(()=>updateCutInfo(li),500);
         } else if(role==='open'){
           pushUndo();
           S.layers[li].open=val;
           $(`ov${li}`).textContent=val===0?'OFF':val+'px';
-          const rawO=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,S.layers[li].centroidIdx,S.layers[li].threshold);
-          S.masks[li]=morphOpen(rawO,S.imgW,S.imgH,val);
+          S.masks[li]=rebuildLayerMask(li);
           invalidateBeCache();VEC_CACHE.delete(li);invalidateBridgedMasks();
           autoSaveSession();renderPreview();
+        } else if(role==='detail'){
+          pushUndo();
+          S.layers[li].detail=val;
+          const mm2=px2mm2(val);
+          $(`dv${li}`).textContent=val===0?'OFF':`${val}px² ≈${mm2.toFixed(1)}mm²`;
+          S.masks[li]=rebuildLayerMask(li);
+          invalidateBeCache();VEC_CACHE.delete(li);invalidateBridgedMasks();
+          autoSaveSession();renderPreview();setTimeout(()=>updateCutInfo(li),500);
         } else if(role==='kerf'){
           S.layers[li].kerf=val;
           $(`kv${li}`).textContent=val==0?'OFF':val.toFixed(1)+'mm';
@@ -1817,10 +1831,7 @@ function renderLayers(){
           renderLayers();renderPreview();
         } else if(role==='inv'){
           S.layers[li].inverted=!S.layers[li].inverted;
-          // Rebuild mask with inversion
-          const rawInv=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,S.layers[li].centroidIdx,S.layers[li].threshold);
-          const morphedInv=morphOpen(rawInv,S.imgW,S.imgH,S.layers[li].open||0);
-          S.masks[li]=S.layers[li].inverted?morphedInv.map(v=>v>0?0:255):morphedInv;
+          S.masks[li]=rebuildLayerMask(li);
           invalidateBeCache();invalidateBridgedMasks();renderLayers();renderPreview();
         } else if(role==='eye'){
           if(lvActive&&lvIndex===li)exitLayerView();
@@ -1883,7 +1894,7 @@ function renderLayers(){
     requestAnimationFrame(()=>{
       const tc=$(`lthumb${idx}`);if(!tc)return;
       tc.width=32;tc.height=32;
-      const mask=S.masks[idx];if(!mask)return;
+      const mask=getStackedMask(idx);if(!mask)return;
       const w=S.imgW,h=S.imgH,ctx=tc.getContext('2d');
       const idata=ctx.createImageData(32,32),px=idata.data;
       const sw=w/32,sh=h/32;
@@ -2033,6 +2044,87 @@ function renderBridgedThumbs(bridgedMasks){
     ctx.strokeStyle='#ffdc00';ctx.lineWidth=1;
     ctx.strokeRect(0.5,0.5,31,31);
   });
+}
+
+/* ═══════════════════════════════════════════
+   STACK MODE — superposición acumulativa
+   Professional multilayer technique: each physical
+   stencil sprays its own zone PLUS everything the
+   later (darker) layers will cover on top.
+   → Layer 0 (lightest) becomes a simple silhouette
+   → No interior islands in base layers
+   → Natural trapping: no white gaps on misalignment
+   stackedMask[i] = mask[i] ∪ mask[i+1] ∪ … ∪ mask[n-1]
+   (list order = paint order, first = bottom)
+═══════════════════════════════════════════ */
+function getStackedMask(li){
+  if(!S.stackMode)return S.masks[li];
+  const base=S.masks[li];
+  if(!base)return base;
+  const n=base.length;
+  const out=new Uint8Array(base);
+  for(let j=li+1;j<S.masks.length;j++){
+    if(S.layers[j]&&S.layers[j].visible===false)continue;
+    const m=S.masks[j];
+    if(!m)continue;
+    for(let i=0;i<n;i++)if(m[i])out[i]=255;
+  }
+  return out;
+}
+
+/* ═══════════════════════════════════════════
+   DETAIL SIMPLIFICATION
+   Removes small ink blobs (tiny holes to cut).
+   Connected-component analysis: ink blobs with
+   area < minArea px² become paper.
+   The MIN isle slider handles the reverse case
+   (small paper islands → ink) in addBridges.
+═══════════════════════════════════════════ */
+function removeSmallInkBlobs(mask,w,h,minArea){
+  if(!minArea)return mask;
+  const n=w*h;
+  const result=new Uint8Array(mask);
+  const visited=new Uint8Array(n);
+  for(let si=0;si<n;si++){
+    if(result[si]===0||visited[si])continue;
+    const blob=[si];visited[si]=1;
+    for(let qi=0;qi<blob.length;qi++){
+      const i=blob[qi],x=i%w,y=(i/w)|0;
+      if(x>0&&result[i-1]>0&&!visited[i-1]){visited[i-1]=1;blob.push(i-1);}
+      if(x<w-1&&result[i+1]>0&&!visited[i+1]){visited[i+1]=1;blob.push(i+1);}
+      if(y>0&&result[i-w]>0&&!visited[i-w]){visited[i-w]=1;blob.push(i-w);}
+      if(y<h-1&&result[i+w]>0&&!visited[i+w]){visited[i+w]=1;blob.push(i+w);}
+    }
+    if(blob.length<minArea){
+      for(const idx of blob)result[idx]=0; // tiny ink blob → paper (no cut)
+    }
+  }
+  return result;
+}
+
+/* Centralised layer mask pipeline:
+   buildMask → morphOpen → removeSmallInkBlobs → invert
+   Single source of truth — used by analyze, autoStencil,
+   slider handlers, invert toggle, and loadProject. */
+function rebuildLayerMask(li){
+  const l=S.layers[li];
+  const w=S.imgW,h=S.imgH;
+  const raw=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,l.threshold);
+  let m=morphOpen(raw,w,h,l.open||0);
+  if(l.detail)m=removeSmallInkBlobs(m,w,h,l.detail);
+  if(l.inverted){
+    const inv=new Uint8Array(m.length);
+    for(let i=0;i<m.length;i++)inv[i]=m[i]>0?0:255;
+    m=inv;
+  }
+  return m;
+}
+
+/* px² → approx mm² using current output dimensions */
+function px2mm2(px2){
+  const widthCm=parseFloat($('outW').value)||30;
+  const mmPerPx=widthCm*10/(S.imgW||1200);
+  return px2*mmPerPx*mmPerPx;
 }
 
 /* ═══════════════════════════════════════════
@@ -2242,8 +2334,9 @@ async function updateCutInfo(li){
   const widthCm=parseFloat($('outW').value)||30;
   const simplify=parseInt($('simplify').value)||5;
   const w=S.imgW,h=S.imgH;
-  const thinRatio=analyzeFeatureSize(S.masks[li],w,h,1.5,widthCm);
-  const{contours}=vectorizeMask(S.masks[li],w,h,simplify,li);
+  const cutMask=getStackedMask(li);
+  const thinRatio=analyzeFeatureSize(cutMask,w,h,1.5,widthCm);
+  const{contours}=vectorizeMask(cutMask,w,h,simplify,li);
   const mm=calcCutLength(contours,w,widthCm);
   const m=(mm/1000).toFixed(1);
   const warn=thinRatio>0.05?` ⚠ ${Math.round(thinRatio*100)}% fino`:'';
@@ -2344,11 +2437,14 @@ async function autoStencil(){
       const thr=0.85+lumFrac*0.3; // 0.85..1.15
       const openVal=lumFrac<0.3?2:lumFrac<0.6?1:0;
       const minIsle=lumFrac<0.3?80:50;
+      // Smart detail removal: light layers (backgrounds) tolerate more
+      // simplification; dark layers (detail/lineart) keep more
+      const detail=lumFrac<0.3?120:lumFrac<0.6?60:30;
       return{
         centroidIdx:ci,
         color:rgbToHex(...safeRgb),
         threshold:Math.round(thr*20)/20,
-        open:openVal,kerf:0,
+        open:openVal,kerf:0,detail,
         maxIsle:0,minIsle,
         visible:true,inverted:false,
         name:autoLayerName(pos,autoK)
@@ -2360,10 +2456,7 @@ async function autoStencil(){
     S.manualLines=S.layers.map(()=>[]);
 
     setProgress(80);setProgMsg('Máscaras…');await sleep(10);
-    S.masks=S.layers.map(l=>{
-      const m=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,l.threshold);
-      return morphOpen(m,w,h,l.open||0);
-    });
+    S.masks=S.layers.map((l,li)=>rebuildLayerMask(li));
 
     setProgress(95);await sleep(10);
     renderLayers();renderPreview();renderHistogram();
@@ -2399,16 +2492,13 @@ async function analyze(){
     S.kmPixels=result.pixels;S.kmAssign=result.assignments;S.kmCentroids=result.centroids;
     setProgress(70);await sleep(10);
     const order=result.centroids.map((c,i)=>{const rgb=lab2rgb(...c);const l=isNaN(rgb[0])?128:luma(rgb);return{l,i};}).sort((a,b)=>b.l-a.l).map(x=>x.i);
-    S.layers=order.map((ci,pos)=>{const rgb=lab2rgb(...result.centroids[ci]);const safeRgb=rgb.map(v=>isNaN(v)?128:v);return{centroidIdx:ci,color:rgbToHex(...safeRgb),threshold:1.0,open:0,kerf:0,maxIsle:0,minIsle:50,visible:true,inverted:false,name:autoLayerName(pos,k)};});
+    S.layers=order.map((ci,pos)=>{const rgb=lab2rgb(...result.centroids[ci]);const safeRgb=rgb.map(v=>isNaN(v)?128:v);return{centroidIdx:ci,color:rgbToHex(...safeRgb),threshold:1.0,open:0,kerf:0,detail:0,maxIsle:0,minIsle:50,visible:true,inverted:false,name:autoLayerName(pos,k)};});
     S.bridgeOverrides=S.layers.map(()=>({skip:new Set(),force:new Set()}));
     S.islandDeletes=S.layers.map(()=>new Map());
     S.manualLines=S.layers.map(()=>[]);
     invalidateBridgedMasks();
     setProgress(80);await sleep(10);
-    S.masks=S.layers.map(l=>{
-      const m=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,1.0);
-      return morphOpen(m,S.imgW,S.imgH,l.open||0);
-    });
+    S.masks=S.layers.map((l,li)=>rebuildLayerMask(li));
     setProgress(95);await sleep(10);
     renderLayers();renderPreview();renderHistogram();
     $('btnExport').disabled=false;$('btnSave').disabled=false;
@@ -2446,7 +2536,7 @@ async function exportZip(){
 
     const minI=layer.minIsle??globalMinIsle;
     const delMap=S.islandDeletes[li]||new Map();
-    const baseMask=applyIslandDeletes(S.masks[li],delMap);
+    const baseMask=applyIslandDeletes(getStackedMask(li),delMap);
     const autoMask=addBridges(baseMask,w,h,bridgePx,minI,layer.maxIsle||0,getLayerOverrides(li));
     const bridgedMask=applyManualLines(autoMask,w,h,baseMask,S.manualLines[li]||[]);
     // Apply kerf compensation
@@ -2545,8 +2635,8 @@ function renderSimPreview(){
     const layer=S.layers[li];
     if(layer.visible===false)continue;
     const rawMask=S.masks[li];if(!rawMask)continue;
-    const baseMaskR=applyIslandDeletes(rawMask,S.islandDeletes[li]);
-    const mask=S.layers[li].inverted?baseMaskR.map(v=>v>0?0:255):baseMaskR;
+    // NOTE: inversion already applied in rebuildLayerMask
+    const mask=applyIslandDeletes(rawMask,S.islandDeletes[li]);
     const[r,g,b]=hexToRgb(layer.color);
     const idata=ctx.createImageData(w,h),px=idata.data;
     for(let i=0;i<w*h;i++){
@@ -2651,12 +2741,11 @@ async function loadProject(file){
   for(let i=0;i<total;i++)pixels[i]=rgb2lab(data[i*4],data[i*4+1],data[i*4+2]);
   S.kmPixels=pixels;
   setProgress(50);await sleep(10);
-  // Restore layers and masks
+  // Restore layers and masks (rebuild via central pipeline)
+  S.stackMode=proj.stackMode||false;
+  const sb=$('btnStack');if(sb){sb.textContent=S.stackMode?'⬒ SUPERPOSICIÓN: ON':'⬒ SUPERPOSICIÓN: OFF';sb.classList.toggle('stack-on',S.stackMode);}
   S.layers=proj.layers;
-  S.masks=S.layers.map(l=>{
-    const raw=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,l.threshold);
-    return morphOpen(raw,S.imgW,S.imgH,l.open||0);
-  });
+  S.masks=S.layers.map((l,li)=>rebuildLayerMask(li));
   // Restore overrides
   S.bridgeOverrides=proj.bridgeOverrides.map(o=>({skip:new Set(o.skip),force:new Set(o.force)}));
   S.islandDeletes=proj.islandDeletes.map(arr=>{const m=new Map();arr.forEach(({k,v})=>m.set(k,new Uint8Array(v)));return m;});
@@ -2723,8 +2812,8 @@ async function exportSingleLayer(li){
   const dpi=parseInt($('pngDpi').value)||300;
 
   showProgress(true,`Exportando capa ${li+1}…`);setProgress(20);await sleep(10);
-  const rawDeleted=applyIslandDeletes(S.masks[li],S.islandDeletes[li]);
-  const baseMask=layer.inverted?rawDeleted.map(v=>v>0?0:255):rawDeleted;
+  // NOTE: inversion already applied in rebuildLayerMask — no re-invert
+  const baseMask=applyIslandDeletes(getStackedMask(li),S.islandDeletes[li]);
   const auto=addBridges(baseMask,w,h,bridgePx,minI,layer.maxIsle||0,getLayerOverrides(li));
   const bridgedMask=applyManualLines(auto,w,h,baseMask,S.manualLines[li]||[]);
   setProgress(60);await sleep(10);
@@ -2971,8 +3060,7 @@ function terminateBridgeWorker(){
 /* Fallback bridge computation on main thread */
 function computeBridgesFallback(layerData){
   return layerData.map(d=>{
-    let base=applyIslandDeletes(S.masks[d.li],S.islandDeletes[d.li]||new Map());
-    if(d.inverted){const inv=new Uint8Array(base.length);for(let i=0;i<base.length;i++)inv[i]=base[i]>0?0:255;base=inv;}
+    const base=applyIslandDeletes(getStackedMask(d.li),S.islandDeletes[d.li]||new Map());
     const ov=getLayerOverrides(d.li);
     const auto=addBridges(base,d.w,d.h,d.bridgePx,d.minI,d.maxIsle,ov);
     return applyManualLines(auto,d.w,d.h,base,S.manualLines[d.li]||[]);
@@ -2982,19 +3070,18 @@ function computeBridgesFallback(layerData){
 async function computeAllBridgedMasks(bridgePx,globalMinIsle){
   const w=S.imgW,h=S.imgH;
   // Build layer descriptors (no ArrayBuffer references — safe for worker copy)
-  const layerData=S.masks.map((mask,li)=>{
+  const layerData=S.masks.map((_,li)=>{
     const layer=S.layers[li];
     const minI=layer.minIsle??globalMinIsle;
     const delMap=S.islandDeletes[li]||new Map();
-    const deletes=[...[...delMap.values()].flat()];
     const ov=getLayerOverrides(li);
     const ml=S.manualLines[li]||[];
-    // Compute the base mask here (apply deletes + invert) so worker gets final data
-    let base=applyIslandDeletes(mask,delMap);
-    if(layer.inverted){const inv=new Uint8Array(base.length);for(let i=0;i<base.length;i++)inv[i]=base[i]>0?0:255;base=inv;}
+    // Stack mode: mask includes all layers painted on top.
+    // NOTE: inversion already applied inside rebuildLayerMask — no re-invert here.
+    const base=applyIslandDeletes(getStackedMask(li),delMap);
     return{li,mask:base,origMask:new Uint8Array(base),w,h,bridgePx,minI,
       maxIsle:layer.maxIsle||0,overrides:{skip:[...ov.skip],force:[...ov.force]},
-      deletes:[],inverted:false,// already applied above
+      deletes:[],inverted:false,
       manualLines:ml};
   });
 
@@ -3055,8 +3142,8 @@ function renderCompare(){
   if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
   const ctx=canvas.getContext('2d');
 
-  const maskA=applyIslandDeletes(S.masks[liA]||new Uint8Array(w*h),S.islandDeletes[liA]||new Map());
-  const maskB=applyIslandDeletes(S.masks[liB]||new Uint8Array(w*h),S.islandDeletes[liB]||new Map());
+  const maskA=applyIslandDeletes(getStackedMask(liA)||new Uint8Array(w*h),S.islandDeletes[liA]||new Map());
+  const maskB=applyIslandDeletes(getStackedMask(liB)||new Uint8Array(w*h),S.islandDeletes[liB]||new Map());
   const[rA,gA,bA]=hexToRgb(S.layers[liA]?.color||'#888888');
   const[rB,gB,bB]=hexToRgb(S.layers[liB]?.color||'#444444');
 
@@ -3191,6 +3278,7 @@ function autoSaveSession(){
     const serOv=S.bridgeOverrides.map(o=>({skip:[...o.skip],force:[...o.force]}));
     localStorage.setItem(LS_KEY,JSON.stringify({
       layers:S.layers.map(l=>({...l})),
+      stackMode:S.stackMode||false,
       layerParams:{k:S.layers.length,imgW:S.imgW,imgH:S.imgH},
       bridgeOverrides:serOv,
       manualLines:S.manualLines,
@@ -3513,8 +3601,8 @@ function getBeAutoMask(li){
   const globalMinIsle=parseInt($('minIsleSize').value)||50;
   const minI=S.layers[li].minIsle??globalMinIsle;
   const delMap=S.islandDeletes[li]||new Map();
-  const rawDeleted=applyIslandDeletes(S.masks[li],delMap);
-  const baseMask=S.layers[li].inverted?rawDeleted.map(v=>v>0?0:255):rawDeleted;
+  // NOTE: inversion already applied in rebuildLayerMask
+  const baseMask=applyIslandDeletes(getStackedMask(li),delMap);
   const autoMask=addBridges(baseMask,w,h,bridgePx,minI,S.layers[li].maxIsle||0,getLayerOverrides(li));
   S.beCache={li,autoMask,baseMask};
   return S.beCache;
@@ -3969,6 +4057,19 @@ function beFindNearestLine(li,x,y){
   $('btnAutoStencil').addEventListener('click',autoStencil);
   // Enable auto stencil when image is loaded
   $('uploadZone').addEventListener('change',()=>{setTimeout(()=>{$('btnAutoStencil').disabled=!S.imageData;},100);},true);
+  // Stack mode toggle
+  $('btnStack').addEventListener('click',()=>{
+    S.stackMode=!S.stackMode;
+    const b=$('btnStack');
+    b.textContent=S.stackMode?'⬒ SUPERPOSICIÓN: ON':'⬒ SUPERPOSICIÓN: OFF';
+    b.classList.toggle('stack-on',S.stackMode);
+    invalidateBeCache();invalidateBridgedMasks();VEC_CACHE.clear();
+    if(S.masks.length){
+      renderLayers();renderPreview();
+      for(let li=0;li<S.layers.length;li++)updateCutInfo(li);
+    }
+    autoSaveSession();
+  });
   // Layer bridge view
   $('lvPrev').addEventListener('click',()=>lvNav(-1));
   $('lvNext').addEventListener('click',()=>lvNav(1));
