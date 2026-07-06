@@ -241,6 +241,7 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
 .lh-btn.be-active{color:#FF2200;border-color:#FF2200}
 /* ── LAYER BRIDGE VIEW ── */
 .lh-btn.eye-on{color:#ffdc00;border-color:#ffdc00}
+.lh-btn.bg-on{color:#8899bb;border-color:#8899bb;background:rgba(136,153,187,.12)}
 .lv-bar{display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);
   background:rgba(6,6,6,.92);border:1px solid var(--border);padding:5px 10px;
   z-index:7;align-items:center;gap:8px;font-family:var(--font-m);font-size:9px;white-space:nowrap}
@@ -325,7 +326,12 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
       </div>
       <button class="btn-run" id="btnAnalyze" disabled data-t="btn_analyze">ANALIZAR</button>
       <button class="auto-btn" id="btnAutoStencil" disabled>⬡ AUTO STENCIL</button>
-      <button class="auto-btn" id="btnStack" style="border-color:#66ccaa;color:#66ccaa;margin-top:4px" title="Cada plantilla incluye las zonas de las capas superiores: capa 1 = silueta completa, las siguientes añaden detalle encima. Menos islas, sin huecos por desalineación.">⬒ SUPERPOSICIÓN: OFF</button>
+      <button class="auto-btn" id="btnStack" style="border-color:#66ccaa;color:#66ccaa;margin-top:4px" title="OFF: cada capa su zona · TRAP: la capa se extiende X mm bajo las superiores en las fronteras (ahorra pintura, tolera desalineación) · STACK: la capa cubre todo lo que se pinta encima (capa 1 = silueta completa)">⬒ SUPERPOSICIÓN: OFF</button>
+      <div class="blur-row" id="trapRow" style="display:none">
+        <span class="blur-lbl" style="color:#66ccaa">TRAP</span>
+        <input type="range" id="trapMm" min="0" max="3" step="0.5" value="1.5" style="flex:1">
+        <span class="blur-lbl" id="trapVal" style="color:#66ccaa">1.5mm</span>
+      </div>
     </div>
 
     <div class="sec">
@@ -333,6 +339,10 @@ footer{border-top:1px solid var(--border);padding:8px 16px;display:flex;
       <div class="ctrl">
         <div class="ctrl-lbl"><span data-t="bridge_width">Ancho del puente</span><span class="ctrl-val" id="bridgeVal">2.0 mm</span></div>
         <input type="range" id="bridgeWidth" min="0.5" max="8" step="0.5" value="2">
+        <label class="blur-row" style="margin-top:3px;cursor:pointer" title="Con superposición activa: capa base ×1.5 (invisible, robusta) · medias ×1.0 · última ×0.7 (visible, mínima)">
+          <input type="checkbox" id="autoBW" style="accent-color:#66ccaa">
+          <span class="blur-lbl">AUTO Ø por capa (stack)</span>
+        </label>
       </div>
       <div class="ctrl">
         <div class="ctrl-lbl"><span data-t="min_isle">Isla mínima</span><span class="ctrl-val" id="minIsleVal">50 px²</span></div>
@@ -573,7 +583,7 @@ const S = {
   manualLines:[],     // per layer: [{x1,y1,x2,y2,r}]  (drawn lines)
   beCache:null,       // {li, autoMask} — invalidated on param change
   vp:{zoom:1,panX:0,panY:0}, // viewport state
-  stackMode:false, // superposición acumulativa (stack painting)
+  stackMode:'', // '' off | 'trap' choke | 'stack' full — superposición
   beData:null         // active bridge edit state + {tool,lineStart}
 };
 
@@ -765,7 +775,7 @@ function morphOpen(mask, w, h, r){
    - MAX_BRIDGE limit → skip impossibly deep islands
    - [x,y] coords throughout (no index arithmetic in draw)
 ═══════════════════════════════════════════ */
-function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
+function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={},coverMask=null){
   const result=new Uint8Array(mask);
   const n=w*h;
   const half=Math.max(1,Math.ceil(bridgePx/2)),halfSq=half*half;
@@ -884,7 +894,10 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
         if(d===6&&(x===0||y===h-1))continue;
         if(d===7&&(x===w-1||y===h-1))continue;
         if(result[ni]===0)continue; // don't enter paper
-        const ec=Math.max(1,Math.min(8,Math.ceil(8/(inkDist[ni]+1))));
+        let ec=Math.max(1,Math.min(8,Math.ceil(8/(inkDist[ni]+1))));
+        // Invisible-bridge discount: corridors under upper layers get
+        // repainted → prefer them (quarter cost, min 1)
+        if(coverMask&&coverMask[ni])ec=Math.max(1,ec>>2);
         const nd=minDist+ec;
         if(nd<dist[ni]){dist[ni]=nd;prev[ni]=i;wheel[nd%SLOTS].push(ni);}
       }
@@ -929,7 +942,9 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
      - Dense stamping (step = half radius) → smooth continuous capsule
      - Ends flare to 1.5× width → stronger anchor where bridge meets
        island and mainland (professional stencil practice)  */
-  function drawCorridor(coords){
+  function drawCorridor(coords,halfOverride){
+    const hf=halfOverride||half;
+    const hfSq=hf*hf;
     const total=coords.length;
     if(!total)return;
     const newPaper=[];
@@ -940,8 +955,8 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
       pathLen+=Math.hypot(coords[i][0]-coords[i-1][0],coords[i][1]-coords[i-1][1]);
       cum.push(pathLen);
     }
-    const flareZone=Math.min(pathLen*0.25,half*3); // flare first/last 25% or 3×half
-    const step=Math.max(1,half*0.5); // dense stamping = smooth capsule
+    const flareZone=Math.min(pathLen*0.25,hf*3); // flare first/last 25% or 3×hf
+    const step=Math.max(1,hf*0.5); // dense stamping = smooth capsule
     let acc=step;
     for(let i=0;i<total;i++){
       if(i>0)acc+=cum[i]-cum[i-1];
@@ -952,7 +967,7 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
         // Flare: radius grows near both ends
         const dEnd=Math.min(cum[i],pathLen-cum[i]);
         const flare=dEnd<flareZone?1+0.5*(1-dEnd/flareZone):1;
-        const r=Math.max(1,Math.round(half*flare));
+        const r=Math.max(1,Math.round(hf*flare));
         const r2=r*r;
         for(let dy=-r;dy<=r;dy++){
           for(let dx=-r;dx<=r;dx++){
@@ -1004,20 +1019,31 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
       let cur=prev[bestNi],safety=0;
       while(cur>=0&&cur<n&&result[cur]>0&&safety++<w+h){rawPath.push([cur%w,(cur/w)|0]);cur=prev[cur];}
       if(cur>=0)rawPath.push([cur%w,(cur/w)|0]);
-      candidates.push({rawPath,angle:Math.atan2(by-centY,bx-centX),len:bestD});
+      // Fraction of path covered by upper layers (invisible when painted over)
+      let covFrac=0;
+      if(coverMask){
+        let cov=0;
+        for(const[px,py]of rawPath){if(coverMask[py*w+px])cov++;}
+        covFrac=rawPath.length?cov/rawPath.length:0;
+      }
+      candidates.push({rawPath,angle:Math.atan2(by-centY,bx-centX),len:bestD,covFrac});
     }
     if(!candidates.length)continue;
-    candidates.sort((a,b)=>a.len-b.len);
+    // Effective length: covered paths count as shorter (invisible in result)
+    candidates.sort((a,b)=>(a.len*(1-0.5*a.covFrac))-(b.len*(1-0.5*b.covFrac)));
 
     /* Selection strategy: 1st bridge = shortest. Subsequent bridges =
        candidate that MAXIMISES min angular distance to already placed,
        among the shortest 60% (avoids long weak bridges).
        Gives even structural spread around the island. */
+    /* Bridge width scales with island mass: a big island weighs more
+       and needs beefier bridges. √area/35 clamped to 0.8–1.6. */
+    const isleHalf=Math.max(1,Math.round(half*Math.min(1.6,Math.max(0.8,Math.sqrt(area)/24))));
     const placed=[];
     const pool=candidates.slice(0,Math.max(3,Math.ceil(candidates.length*0.6)));
     // First: shortest
     placed.push(pool[0]);
-    drawCorridor(chaikin(pool[0].rawPath,2));
+    drawCorridor(chaikin(pool[0].rawPath,2),isleHalf);
     while(placed.length<nB){
       let best=null,bestScore=-1;
       for(const cand of pool){
@@ -1028,12 +1054,12 @@ function addBridges(mask,w,h,bridgePx,minIsle,maxIsle,overrides={}){
           if(d>Math.PI)d=2*Math.PI-d;
           if(d<minD)minD=d;
         }
-        // Score: angular spread first, shorter length as tiebreak
-        const score=minD*1000-cand.len;
+        // Score: angular spread first, covered paths bonus, length tiebreak
+        const score=minD*1000+(cand.covFrac||0)*500-cand.len;
         if(minD>=minAng*0.5&&score>bestScore){bestScore=score;best=cand;}
       }
       if(!best)break; // no candidate with acceptable spread
-      drawCorridor(chaikin(best.rawPath,2));
+      drawCorridor(chaikin(best.rawPath,2),isleHalf);
       placed.push(best);
     }
     if(placed.length>0){
@@ -1688,13 +1714,18 @@ function buildPNG(mask,w,h,widthCm,heightCm,dpi=300){
 ═══════════════════════════════════════════ */
 function renderPreview(){
   const canvas=$('previewCanvas'),w=S.imgW,h=S.imgH;
+  const dimsChanged=canvas.width!==w||canvas.height!==h;
   canvas.width=w;canvas.height=h;
   const ctx=canvas.getContext('2d'),idata=ctx.createImageData(w,h),px=idata.data;
+  // Wall background
   for(let i=0;i<w*h;i++){px[i*4]=230;px[i*4+1]=230;px[i*4+2]=230;px[i*4+3]=255;}
+  /* Paint-order compositing with EFFECTIVE masks (stacked when the
+     mode is on): the preview shows exactly what the wall will look
+     like — layer 0 first (base coat), later layers cover it. Detail
+     holes reveal the layer underneath, not artificial grey specks. */
   for(let li=0;li<S.layers.length;li++){
     if(S.layers[li].visible===false)continue;
-    const rawMask=S.masks[li];if(!rawMask)continue;
-    // NOTE: inversion already applied in rebuildLayerMask
+    const rawMask=getStackedMask(li);if(!rawMask)continue;
     const mask=applyIslandDeletes(rawMask,S.islandDeletes[li]);
     const[r,g,b]=hexToRgb(S.layers[li].color);
     for(let i=0;i<w*h;i++){if(mask[i]){px[i*4]=r;px[i*4+1]=g;px[i*4+2]=b;px[i*4+3]=255;}}
@@ -1702,7 +1733,40 @@ function renderPreview(){
   ctx.putImageData(idata,0,0);
   $('placeholder').style.display='none';canvas.style.display='block';
   $('zoomControls').style.display='flex';
-  vpFit();
+  // Keep user's zoom/pan across re-renders; fit only on size change
+  if(dimsChanged)vpFit();else vpApply();
+}
+
+/* ═══════════════════════════════════════════
+   MERGE LAYER (⤵)
+   Fuses layer li into the NEXT one (li+1, darker,
+   painted after). The surviving layer inherits all
+   K-means centroids (mergedIdx) so threshold/open
+   rebuilds keep the fusion. Undo-able.
+═══════════════════════════════════════════ */
+function mergeLayerDown(li){
+  if(li>=S.layers.length-1)return; // nothing below
+  pushUndo();
+  const src=S.layers[li],dst=S.layers[li+1];
+  const srcIds=src.mergedIdx&&src.mergedIdx.length?src.mergedIdx:[src.centroidIdx];
+  const dstIds=dst.mergedIdx&&dst.mergedIdx.length?dst.mergedIdx:[dst.centroidIdx];
+  dst.mergedIdx=[...dstIds,...srcIds];
+  // Merge masks immediately (OR)
+  const a=S.masks[li],b=S.masks[li+1];
+  if(a&&b){for(let i=0;i<b.length;i++)if(a[i])b[i]=255;}
+  // Remove source layer + parallel arrays
+  S.layers.splice(li,1);
+  S.masks.splice(li,1);
+  S.bridgeOverrides.splice(li,1);
+  S.islandDeletes.splice(li,1);
+  S.manualLines.splice(li,1);
+  if(lvActive)exitLayerView();
+  invalidateBeCache();invalidateBridgedMasks();VEC_CACHE.clear();
+  detectBackgroundLayer();
+  autoSaveSession();
+  renderLayers();renderPreview();renderHistogram();
+  for(let k=0;k<S.layers.length;k++)updateCutInfo(k);
+  setStatus(`Capas fusionadas → ${dst.name}`,`${S.layers.length} capas`);
 }
 
 /* ═══════════════════════════════════════════
@@ -1731,6 +1795,8 @@ function renderLayers(){
         <button class="lh-btn" data-li="${idx}" data-role="up" ${idx===0?'disabled':''} title="move up">↑</button>
         <button class="lh-btn" data-li="${idx}" data-role="dn" ${idx===n-1?'disabled':''} title="move down">↓</button>
         <button class="lh-btn${layer.inverted?' inv-on':''}" data-li="${idx}" data-role="inv" title="invertir máscara">⇅</button>
+        <button class="lh-btn" data-li="${idx}" data-role="merge" title="fusionar con la capa inferior (hereda sus centroides K-means)" ${idx>=n-1?'disabled style="opacity:.25"':''}>⤵</button>
+        <button class="lh-btn${layer.isBg?' bg-on':''}" data-li="${idx}" data-role="bg" title="capa de FONDO: excluida de la superposición (no absorbe capas superiores ni cuenta como cobertura)">⊘</button>
         <button class="lh-btn${lvActive&&lvIndex===idx?' eye-on':''}" data-li="${idx}" data-role="eye" title="ver bridges de esta capa">👁</button>
         <button class="lh-btn" data-li="${idx}" data-role="dl" title="exportar capa">↓</button>
         <button class="lh-btn${S.beData&&S.beData.li===idx?' be-active':''}" data-li="${idx}" data-role="be" title="edit bridges">⊕</button>
@@ -1833,6 +1899,13 @@ function renderLayers(){
           S.layers[li].inverted=!S.layers[li].inverted;
           S.masks[li]=rebuildLayerMask(li);
           invalidateBeCache();invalidateBridgedMasks();renderLayers();renderPreview();
+        } else if(role==='merge'){
+          if(li<S.layers.length-1&&confirm(`¿Fusionar "${S.layers[li].name}" con "${S.layers[li+1].name}"?`))mergeLayerDown(li);
+        } else if(role==='bg'){
+          S.layers[li].isBg=S.layers[li].isBg?false:true;
+          invalidateBeCache();invalidateBridgedMasks();VEC_CACHE.clear();
+          autoSaveSession();renderLayers();renderPreview();
+          for(let k=0;k<S.layers.length;k++)updateCutInfo(k);
         } else if(role==='eye'){
           if(lvActive&&lvIndex===li)exitLayerView();
           else enterLayerView(li);
@@ -2057,19 +2130,106 @@ function renderBridgedThumbs(bridgedMasks){
    stackedMask[i] = mask[i] ∪ mask[i+1] ∪ … ∪ mask[n-1]
    (list order = paint order, first = bottom)
 ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════
+   BACKGROUND LAYER (⊘)
+   In a portrait, the lightest layer is usually the
+   BACKGROUND touching the whole canvas edge. Stacking
+   it absorbs everything → a useless 100%-ink stencil.
+   Background layers are EXCLUDED from stacking:
+   their stencil stays their own zone, and they never
+   count as "cover" for other layers.
+   Auto-detected after analyze (canvas-border heuristic),
+   manually toggleable per layer (⊘ button).
+═══════════════════════════════════════════ */
+function detectBackgroundLayer(){
+  if(!S.masks.length||!S.imgW)return;
+  const w=S.imgW,h=S.imgH;
+  // Border ring (2px) pixel indices
+  const ring=[];
+  for(let x=0;x<w;x++){ring.push(x,w+x,(h-1)*w+x,(h-2)*w+x);}
+  for(let y=2;y<h-2;y++){ring.push(y*w,y*w+1,y*w+w-1,y*w+w-2);}
+  const fracs=S.masks.map(m=>{
+    if(!m)return 0;
+    let cnt=0;
+    for(const i of ring)if(m[i])cnt++;
+    return cnt/ring.length;
+  });
+  // Clear previous auto flags
+  S.layers.forEach(l=>{if(l.isBg==='auto')l.isBg=false;});
+  /* The background/underbase is the LIGHT base coat — never the dark
+     detail layer, even if dark hair/shadow touches lots of border.
+     Rule: FIRST (lightest — layers are luminance-sorted) layer whose
+     ink covers >30% of the border ring. Fallback: any layer covering
+     >60% (clearly dominant). */
+  let bgLi=-1;
+  for(let li=0;li<fracs.length;li++){
+    if(fracs[li]>0.30){bgLi=li;break;}
+  }
+  if(bgLi<0){
+    let best=-1,bf=0;
+    fracs.forEach((f,i)=>{if(f>bf){bf=f;best=i;}});
+    if(bf>0.60)bgLi=best;
+  }
+  if(bgLi>=0&&!S.layers[bgLi].isBg){
+    S.layers[bgLi].isBg='auto';
+    setStatus(`⊘ fondo detectado: capa ${bgLi+1} (${S.layers[bgLi].name})`,`${Math.round(fracs[bgLi]*100)}% del borde`);
+  }
+}
+
+/* Union of all masks painted ON TOP of layer li (visible only).
+   Returns null when there are no upper layers. */
+function getUpperUnion(li){
+  const base=S.masks[li];if(!base)return null;
+  const n=base.length;
+  let u=null;
+  for(let j=li+1;j<S.masks.length;j++){
+    if(S.layers[j]&&(S.layers[j].visible===false||S.layers[j].isBg))continue;
+    const m=S.masks[j];if(!m)continue;
+    if(!u)u=new Uint8Array(n);
+    for(let i=0;i<n;i++)if(m[i])u[i]=255;
+  }
+  return u;
+}
+
+/* Trap distance in px from the mm slider + output dims */
+function getTrapPx(){
+  const el=$('trapMm');
+  const trapMm=el?parseFloat(el.value)||0:0;
+  if(trapMm<=0)return 0;
+  const widthCm=parseFloat($('outW').value)||30;
+  return Math.max(1,Math.round(trapMm*(S.imgW||1200)/(widthCm*10)));
+}
+
+/* Three modes:
+   ''      → off  (each layer = its own K-means zone)
+   'trap'  → underbase choke: layer creeps trapMm UNDER its upper
+             neighbours at shared borders. Saves paint, keeps the
+             misregistration tolerance.
+   'stack' → full stack: layer covers everything painted on top
+             (+ optional trapMm spread beyond upper boundaries).
+             Base layer = complete silhouette.  */
 function getStackedMask(li){
   if(!S.stackMode)return S.masks[li];
   const base=S.masks[li];
   if(!base)return base;
-  const n=base.length;
+  // Background layer: no stacking — its stencil is its own zone
+  if(S.layers[li]&&S.layers[li].isBg)return new Uint8Array(base);
+  const upper=getUpperUnion(li);
+  if(!upper)return new Uint8Array(base); // top layer: unchanged (copy)
+  const n=base.length,w=S.imgW,h=S.imgH;
+  const trapPx=getTrapPx();
   const out=new Uint8Array(base);
-  for(let j=li+1;j<S.masks.length;j++){
-    if(S.layers[j]&&S.layers[j].visible===false)continue;
-    const m=S.masks[j];
-    if(!m)continue;
-    for(let i=0;i<n;i++)if(m[i])out[i]=255;
+  if(S.stackMode==='stack'){
+    const cov=trapPx>0?morphDilate(upper,w,h,trapPx):upper;
+    for(let i=0;i<n;i++)if(cov[i])out[i]=255;
+    // Seal 1px K-means seams between the merged zones (paper slivers
+    // inside ink are fragile to cut and show as thin white lines)
+    return morphErode(morphDilate(out,w,h,1),w,h,1);
   }
-  return out;
+  // 'trap' mode: base ∪ (dilate(base,trapPx) ∩ upper)
+  const dil=morphDilate(base,w,h,Math.max(1,trapPx||Math.round(1.5*(S.imgW||1200)/((parseFloat($('outW').value)||30)*10))));
+  for(let i=0;i<n;i++)if(dil[i]&&upper[i])out[i]=255;
+  return morphErode(morphDilate(out,w,h,1),w,h,1);
 }
 
 /* ═══════════════════════════════════════════
@@ -2109,7 +2269,14 @@ function removeSmallInkBlobs(mask,w,h,minArea){
 function rebuildLayerMask(li){
   const l=S.layers[li];
   const w=S.imgW,h=S.imgH;
-  const raw=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,l.centroidIdx,l.threshold);
+  // Merged layers own several K-means centroids → OR of their masks
+  const cids=l.mergedIdx&&l.mergedIdx.length?l.mergedIdx:[l.centroidIdx];
+  let raw=null;
+  for(const ci of cids){
+    const mm=buildMask(S.kmPixels,S.kmAssign,S.kmCentroids,ci,l.threshold);
+    if(!raw)raw=mm;
+    else for(let i=0;i<raw.length;i++)if(mm[i])raw[i]=255;
+  }
   let m=morphOpen(raw,w,h,l.open||0);
   if(l.detail)m=removeSmallInkBlobs(m,w,h,l.detail);
   if(l.inverted){
@@ -2340,10 +2507,29 @@ async function updateCutInfo(li){
   const mm=calcCutLength(contours,w,widthCm);
   const m=(mm/1000).toFixed(1);
   const warn=thinRatio>0.05?` ⚠ ${Math.round(thinRatio*100)}% fino`:'';
+  // Visibility: fraction of the layer's OWN zone not repainted by upper layers
+  let visTxt='',buried=false;
+  if(S.stackMode){
+    const own=S.masks[li],upper=getUpperUnion(li);
+    if(own&&upper){
+      let vis=0,tot=0;
+      for(let i=0;i<own.length;i++){if(own[i]){tot++;if(!upper[i])vis++;}}
+      const pct=tot?Math.round(vis/tot*100):100;
+      buried=pct<5;
+      visTxt=buried?` · ⚠ ${pct}% visible (capa tapada)`:` · ${pct}% visible`;
+    }
+  }
+  // Full-ink check: a ~100% stencil means "paint the whole area — no stencil needed"
+  let fullInk=false;
+  {let ink=0;for(let i=0;i<cutMask.length;i++)if(cutMask[i])ink++;
+   fullInk=ink/cutMask.length>0.98;}
+  const bgTag=S.layers[li].isBg?' · ⊘ fondo':'';
   const el=$(`ci${li}`);
   if(el){
-    el.textContent=`✂ ${m}m corte${warn}`;
-    el.style.color=thinRatio>0.05?'#ff6644':'#555';
+    el.textContent=fullInk
+      ?`⚠ 100% tinta — pintar sin plantilla${bgTag}`
+      :`✂ ${m}m corte${warn}${visTxt}${bgTag}`;
+    el.style.color=(thinRatio>0.05||buried||fullInk)?'#ff6644':'#555';
   }
 }
 
@@ -2457,6 +2643,7 @@ async function autoStencil(){
 
     setProgress(80);setProgMsg('Máscaras…');await sleep(10);
     S.masks=S.layers.map((l,li)=>rebuildLayerMask(li));
+    detectBackgroundLayer();
 
     setProgress(95);await sleep(10);
     renderLayers();renderPreview();renderHistogram();
@@ -2492,13 +2679,14 @@ async function analyze(){
     S.kmPixels=result.pixels;S.kmAssign=result.assignments;S.kmCentroids=result.centroids;
     setProgress(70);await sleep(10);
     const order=result.centroids.map((c,i)=>{const rgb=lab2rgb(...c);const l=isNaN(rgb[0])?128:luma(rgb);return{l,i};}).sort((a,b)=>b.l-a.l).map(x=>x.i);
-    S.layers=order.map((ci,pos)=>{const rgb=lab2rgb(...result.centroids[ci]);const safeRgb=rgb.map(v=>isNaN(v)?128:v);return{centroidIdx:ci,color:rgbToHex(...safeRgb),threshold:1.0,open:0,kerf:0,detail:0,maxIsle:0,minIsle:50,visible:true,inverted:false,name:autoLayerName(pos,k)};});
+    S.layers=order.map((ci,pos)=>{const rgb=lab2rgb(...result.centroids[ci]);const safeRgb=rgb.map(v=>isNaN(v)?128:v);return{centroidIdx:ci,color:rgbToHex(...safeRgb),threshold:1.0,open:0,kerf:0,detail:20,maxIsle:0,minIsle:50,visible:true,inverted:false,name:autoLayerName(pos,k)};});
     S.bridgeOverrides=S.layers.map(()=>({skip:new Set(),force:new Set()}));
     S.islandDeletes=S.layers.map(()=>new Map());
     S.manualLines=S.layers.map(()=>[]);
     invalidateBridgedMasks();
     setProgress(80);await sleep(10);
     S.masks=S.layers.map((l,li)=>rebuildLayerMask(li));
+    detectBackgroundLayer();
     setProgress(95);await sleep(10);
     renderLayers();renderPreview();renderHistogram();
     $('btnExport').disabled=false;$('btnSave').disabled=false;
@@ -2537,10 +2725,11 @@ async function exportZip(){
     const minI=layer.minIsle??globalMinIsle;
     const delMap=S.islandDeletes[li]||new Map();
     const baseMask=applyIslandDeletes(getStackedMask(li),delMap);
-    const autoMask=addBridges(baseMask,w,h,bridgePx,minI,layer.maxIsle||0,getLayerOverrides(li));
+    const autoMask=addBridges(baseMask,w,h,getLayerBridgePx(li,bridgePx),minI,layer.maxIsle||0,getLayerOverrides(li),getCoverMask(li));
     const bridgedMask=applyManualLines(autoMask,w,h,baseMask,S.manualLines[li]||[]);
-    // Apply kerf compensation
-    const kerfMask=applyKerf(bridgedMask,w,h,layer.kerf||0,widthCm);
+    // Apply kerf compensation + absolute noise floor (matches SVG's
+    // MIN_AREA=4px² vectorizer filter → PNG and SVG stay consistent)
+    const kerfMask=removeSmallInkBlobs(applyKerf(bridgedMask,w,h,layer.kerf||0,widthCm),w,h,4);
 
     const num=String(li+1).padStart(2,'0');
     const col=layer.color.replace('#','');
@@ -2634,13 +2823,16 @@ function renderSimPreview(){
   for(let li=0;li<S.layers.length;li++){
     const layer=S.layers[li];
     if(layer.visible===false)continue;
-    const rawMask=S.masks[li];if(!rawMask)continue;
-    // NOTE: inversion already applied in rebuildLayerMask
+    const rawMask=getStackedMask(li);if(!rawMask)continue;
+    // NOTE: inversion already applied in rebuildLayerMask.
+    // With stack active, each pass paints its FULL stencil (stacked
+    // mask): later passes physically cover earlier ones — same as
+    // the real wall.
     const mask=applyIslandDeletes(rawMask,S.islandDeletes[li]);
     const[r,g,b]=hexToRgb(layer.color);
     const idata=ctx.createImageData(w,h),px=idata.data;
     for(let i=0;i<w*h;i++){
-      if(mask[i]){px[i*4]=r;px[i*4+1]=g;px[i*4+2]=b;px[i*4+3]=180;}
+      if(mask[i]){px[i*4]=r;px[i*4+1]=g;px[i*4+2]=b;px[i*4+3]=S.stackMode?235:180;}
     }
     ctx.putImageData(idata,0,0);
     // Light spray blur effect via shadow
@@ -2742,8 +2934,13 @@ async function loadProject(file){
   S.kmPixels=pixels;
   setProgress(50);await sleep(10);
   // Restore layers and masks (rebuild via central pipeline)
-  S.stackMode=proj.stackMode||false;
-  const sb=$('btnStack');if(sb){sb.textContent=S.stackMode?'⬒ SUPERPOSICIÓN: ON':'⬒ SUPERPOSICIÓN: OFF';sb.classList.toggle('stack-on',S.stackMode);}
+  // Backward compat: boolean true from old projects → 'stack'
+  S.stackMode=proj.stackMode===true?'stack':(proj.stackMode||'');
+  if(proj.trapMm!==undefined){$('trapMm').value=proj.trapMm;$('trapVal').textContent=parseFloat(proj.trapMm).toFixed(1)+'mm';}
+  if(proj.autoBW!==undefined)$('autoBW').checked=!!proj.autoBW;
+  {const b=$('btnStack');const L={'':'⬒ SUPERPOSICIÓN: OFF','trap':'⬒ SUPERPOSICIÓN: TRAP','stack':'⬒ SUPERPOSICIÓN: STACK'};
+   b.textContent=L[S.stackMode||''];b.classList.toggle('stack-on',!!S.stackMode);
+   $('trapRow').style.display=S.stackMode?'flex':'none';}
   S.layers=proj.layers;
   S.masks=S.layers.map((l,li)=>rebuildLayerMask(li));
   // Restore overrides
@@ -2814,8 +3011,8 @@ async function exportSingleLayer(li){
   showProgress(true,`Exportando capa ${li+1}…`);setProgress(20);await sleep(10);
   // NOTE: inversion already applied in rebuildLayerMask — no re-invert
   const baseMask=applyIslandDeletes(getStackedMask(li),S.islandDeletes[li]);
-  const auto=addBridges(baseMask,w,h,bridgePx,minI,layer.maxIsle||0,getLayerOverrides(li));
-  const bridgedMask=applyManualLines(auto,w,h,baseMask,S.manualLines[li]||[]);
+  const auto=addBridges(baseMask,w,h,getLayerBridgePx(li,bridgePx),minI,layer.maxIsle||0,getLayerOverrides(li),getCoverMask(li));
+  const bridgedMask=removeSmallInkBlobs(applyManualLines(auto,w,h,baseMask,S.manualLines[li]||[]),w,h,4);
   setProgress(60);await sleep(10);
   const num=String(li+1).padStart(2,'0');
   const col=layer.color.replace('#','');
@@ -2852,7 +3049,7 @@ function getBridgeWorker(){
   const fns=[morphOpen,applyIslandDeletes,applyManualLines].map(f=>f.toString()).join('\n');
   const workerSrc=fns+`
 // Minimal bridge engine copy (self-contained for Worker scope)
-function addBridgesW(mask,w,h,bridgePx,minIsle,maxIsle,overrides){
+function addBridgesW(mask,w,h,bridgePx,minIsle,maxIsle,overrides,coverMask){
   const result=new Uint8Array(mask);
   const n=w*h;
   const half=Math.max(1,Math.ceil(bridgePx/2)),halfSq=half*half;
@@ -2921,7 +3118,8 @@ function addBridgesW(mask,w,h,bridgePx,minIsle,maxIsle,overrides){
         if(d===4&&(x===0||y===0))continue;if(d===5&&(x===w-1||y===0))continue;
         if(d===6&&(x===0||y===h-1))continue;if(d===7&&(x===w-1||y===h-1))continue;
         if(result[ni]===0)continue;
-        const ec=Math.max(1,Math.min(8,Math.ceil(8/(inkDist[ni]+1))));
+        let ec=Math.max(1,Math.min(8,Math.ceil(8/(inkDist[ni]+1))));
+        if(coverMask&&coverMask[ni])ec=Math.max(1,ec>>2);
         const nd=_mn+ec;
         if(nd<_dist[ni]){_dist[ni]=nd;_prev[ni]=i;_whl[nd%_SL].push(ni);}
       }
@@ -2945,13 +3143,14 @@ function addBridgesW(mask,w,h,bridgePx,minIsle,maxIsle,overrides){
         q.push([0.75*p0[0]+0.25*p1[0],0.75*p0[1]+0.25*p1[1]]);
         q.push([0.25*p0[0]+0.75*p1[0],0.25*p0[1]+0.75*p1[1]]);}
       p=q;}return p;}
-  function drawCorridor(coords){
+  function drawCorridor(coords,halfOverride){
+    const hf=halfOverride||half;
     const total=coords.length;if(!total)return;
     const np=[];
     let pathLen=0;const cum=[0];
     for(let i=1;i<total;i++){pathLen+=Math.hypot(coords[i][0]-coords[i-1][0],coords[i][1]-coords[i-1][1]);cum.push(pathLen);}
-    const flareZone=Math.min(pathLen*0.25,half*3);
-    const step=Math.max(1,half*0.5);let acc=step;
+    const flareZone=Math.min(pathLen*0.25,hf*3);
+    const step=Math.max(1,hf*0.5);let acc=step;
     for(let i=0;i<total;i++){
       if(i>0)acc+=cum[i]-cum[i-1];
       if(acc>=step||i===0||i===total-1){acc=0;
@@ -2959,7 +3158,7 @@ function addBridgesW(mask,w,h,bridgePx,minIsle,maxIsle,overrides){
         if(px<0||px>=w||py<0||py>=h)continue;
         const dEnd=Math.min(cum[i],pathLen-cum[i]);
         const flare=dEnd<flareZone?1+0.5*(1-dEnd/flareZone):1;
-        const r=Math.max(1,Math.round(half*flare));const r2=r*r;
+        const r=Math.max(1,Math.round(hf*flare));const r2=r*r;
         for(let dy2=-r;dy2<=r;dy2++){for(let dx2=-r;dx2<=r;dx2++){
           if(dx2*dx2+dy2*dy2<=r2){const bx=px+dx2,by=py+dy2;
             if(bx>=0&&bx<w&&by>=0&&by<h){const bi=by*w+bx;if(result[bi]>0){result[bi]=0;isConn[bi]=1;np.push(bi);}}}}}}
@@ -2990,23 +3189,26 @@ function addBridgesW(mask,w,h,bridgePx,minIsle,maxIsle,overrides){
       let cur=prev[bestNi],safety=0;
       while(cur>=0&&cur<n&&result[cur]>0&&safety++<w+h){rawPath.push([cur%w,(cur/w)|0]);cur=prev[cur];}
       if(cur>=0)rawPath.push([cur%w,(cur/w)|0]);
-      candidates.push({rawPath,angle:Math.atan2(by-centY,bx-centX),len:bestD});}
+      let covFrac=0;
+      if(coverMask){let cov=0;for(const[px,py]of rawPath){if(coverMask[py*w+px])cov++;}covFrac=rawPath.length?cov/rawPath.length:0;}
+      candidates.push({rawPath,angle:Math.atan2(by-centY,bx-centX),len:bestD,covFrac});}
     if(!candidates.length)continue;
-    candidates.sort((a,b)=>a.len-b.len);
+    candidates.sort((a,b)=>(a.len*(1-0.5*a.covFrac))-(b.len*(1-0.5*b.covFrac)));
+    const isleHalf=Math.max(1,Math.round(half*Math.min(1.6,Math.max(0.8,Math.sqrt(area)/24))));
     const placed=[];
     const pool=candidates.slice(0,Math.max(3,Math.ceil(candidates.length*0.6)));
-    placed.push(pool[0]);drawCorridor(chk(pool[0].rawPath,2));
+    placed.push(pool[0]);drawCorridor(chk(pool[0].rawPath,2),isleHalf);
     while(placed.length<nB){
       let best=null,bestScore=-1;
       for(const cand of pool){
         if(placed.includes(cand))continue;
         let minD=Infinity;
         for(const p of placed){let d=Math.abs(cand.angle-p.angle);if(d>Math.PI)d=2*Math.PI-d;if(d<minD)minD=d;}
-        const score=minD*1000-cand.len;
+        const score=minD*1000+(cand.covFrac||0)*500-cand.len;
         if(minD>=minAng*0.5&&score>bestScore){bestScore=score;best=cand;}
       }
       if(!best)break;
-      drawCorridor(chk(best.rawPath,2));placed.push(best);
+      drawCorridor(chk(best.rawPath,2),isleHalf);placed.push(best);
     }
     if(placed.length>0){
       for(const idx of isle)isConn[idx]=1;
@@ -3021,12 +3223,12 @@ self.onmessage=function(e){
   if(msg.cmd==='bridges'){
     const results=[];
     for(const layer of msg.layers){
-      const{mask,w,h,bridgePx,minI,maxIsle,overrides,deletes,inverted,manualLines,origMask}=layer;
+      const{mask,w,h,bridgePx,minI,maxIsle,overrides,deletes,inverted,manualLines,origMask,cover}=layer;
       let base=new Uint8Array(mask);
       // Apply island deletes
       if(deletes&&deletes.length>0){base=new Uint8Array(base);for(const idx of deletes)base[idx]=255;}
       if(inverted){const inv=new Uint8Array(base.length);for(let i=0;i<base.length;i++)inv[i]=base[i]>0?0:255;base=inv;}
-      const auto=addBridgesW(base,w,h,bridgePx,minI,maxIsle,overrides);
+      const auto=addBridgesW(base,w,h,bridgePx,minI,maxIsle,overrides,cover||null);
       // Apply manual lines
       let result=auto;
       if(manualLines&&manualLines.length>0){
@@ -3056,13 +3258,29 @@ function terminateBridgeWorker(){
   if(_bridgeWorker){_bridgeWorker.terminate();_bridgeWorker=null;}
 }
 
+/* Per-layer bridge width: with stack + AUTO Ø active, base layers
+   get thicker (invisible) bridges, the top layer thinner (visible). */
+function getLayerBridgePx(li,basePx){
+  const auto=$('autoBW');
+  if(!S.stackMode||!auto||!auto.checked)return basePx;
+  const last=S.layers.length-1;
+  const f=li===0?1.5:li===last?0.7:1.0;
+  return Math.max(1,Math.round(basePx*f));
+}
+
+/* Cover mask for invisible bridges (null when stack off or top layer) */
+function getCoverMask(li){
+  if(!S.stackMode)return null;
+  return getUpperUnion(li);
+}
+
 /* Run bridges for all layers, off-thread if available */
 /* Fallback bridge computation on main thread */
 function computeBridgesFallback(layerData){
   return layerData.map(d=>{
     const base=applyIslandDeletes(getStackedMask(d.li),S.islandDeletes[d.li]||new Map());
     const ov=getLayerOverrides(d.li);
-    const auto=addBridges(base,d.w,d.h,d.bridgePx,d.minI,d.maxIsle,ov);
+    const auto=addBridges(base,d.w,d.h,d.bridgePx,d.minI,d.maxIsle,ov,getCoverMask(d.li));
     return applyManualLines(auto,d.w,d.h,base,S.manualLines[d.li]||[]);
   });
 }
@@ -3079,10 +3297,12 @@ async function computeAllBridgedMasks(bridgePx,globalMinIsle){
     // Stack mode: mask includes all layers painted on top.
     // NOTE: inversion already applied inside rebuildLayerMask — no re-invert here.
     const base=applyIslandDeletes(getStackedMask(li),delMap);
-    return{li,mask:base,origMask:new Uint8Array(base),w,h,bridgePx,minI,
+    const cov=getCoverMask(li);
+    return{li,mask:base,origMask:new Uint8Array(base),w,h,
+      bridgePx:getLayerBridgePx(li,bridgePx),minI,
       maxIsle:layer.maxIsle||0,overrides:{skip:[...ov.skip],force:[...ov.force]},
       deletes:[],inverted:false,
-      manualLines:ml};
+      manualLines:ml,cover:cov};
   });
 
   const worker=getBridgeWorker();
@@ -3106,7 +3326,7 @@ async function computeAllBridgedMasks(bridgePx,globalMinIsle){
       resolve(computeBridgesFallback(layerData));
     };
     // Transfer mask buffers to worker for speed (origMask kept as copy for manual lines)
-    const transferBufs=layerData.map(d=>d.mask.buffer);
+    const transferBufs=layerData.flatMap(d=>d.cover?[d.mask.buffer,d.cover.buffer]:[d.mask.buffer]);
     worker.postMessage({cmd:'bridges',layers:layerData},transferBufs);
   });
 }
@@ -3278,7 +3498,9 @@ function autoSaveSession(){
     const serOv=S.bridgeOverrides.map(o=>({skip:[...o.skip],force:[...o.force]}));
     localStorage.setItem(LS_KEY,JSON.stringify({
       layers:S.layers.map(l=>({...l})),
-      stackMode:S.stackMode||false,
+      stackMode:S.stackMode||'',
+      trapMm:parseFloat($('trapMm')?.value)||1.5,
+      autoBW:$('autoBW')?.checked||false,
       layerParams:{k:S.layers.length,imgW:S.imgW,imgH:S.imgH},
       bridgeOverrides:serOv,
       manualLines:S.manualLines,
@@ -3603,7 +3825,7 @@ function getBeAutoMask(li){
   const delMap=S.islandDeletes[li]||new Map();
   // NOTE: inversion already applied in rebuildLayerMask
   const baseMask=applyIslandDeletes(getStackedMask(li),delMap);
-  const autoMask=addBridges(baseMask,w,h,bridgePx,minI,S.layers[li].maxIsle||0,getLayerOverrides(li));
+  const autoMask=addBridges(baseMask,w,h,getLayerBridgePx(li,bridgePx),minI,S.layers[li].maxIsle||0,getLayerOverrides(li),getCoverMask(li));
   S.beCache={li,autoMask,baseMask};
   return S.beCache;
 }
@@ -4058,11 +4280,16 @@ function beFindNearestLine(li,x,y){
   // Enable auto stencil when image is loaded
   $('uploadZone').addEventListener('change',()=>{setTimeout(()=>{$('btnAutoStencil').disabled=!S.imageData;},100);},true);
   // Stack mode toggle
-  $('btnStack').addEventListener('click',()=>{
-    S.stackMode=!S.stackMode;
+  const STACK_LABELS={'':'⬒ SUPERPOSICIÓN: OFF','trap':'⬒ SUPERPOSICIÓN: TRAP','stack':'⬒ SUPERPOSICIÓN: STACK'};
+  function applyStackUI(){
     const b=$('btnStack');
-    b.textContent=S.stackMode?'⬒ SUPERPOSICIÓN: ON':'⬒ SUPERPOSICIÓN: OFF';
-    b.classList.toggle('stack-on',S.stackMode);
+    b.textContent=STACK_LABELS[S.stackMode||''];
+    b.classList.toggle('stack-on',!!S.stackMode);
+    $('trapRow').style.display=S.stackMode?'flex':'none';
+  }
+  $('btnStack').addEventListener('click',()=>{
+    S.stackMode=S.stackMode===''||!S.stackMode?'trap':S.stackMode==='trap'?'stack':'';
+    applyStackUI();
     invalidateBeCache();invalidateBridgedMasks();VEC_CACHE.clear();
     if(S.masks.length){
       renderLayers();renderPreview();
@@ -4070,6 +4297,14 @@ function beFindNearestLine(li,x,y){
     }
     autoSaveSession();
   });
+  $('trapMm').addEventListener('input',e=>{
+    $('trapVal').textContent=parseFloat(e.target.value).toFixed(1)+'mm';
+    if(!S.stackMode)return;
+    invalidateBeCache();invalidateBridgedMasks();VEC_CACHE.clear();
+    if(S.masks.length){renderLayers();renderPreview();for(let li=0;li<S.layers.length;li++)updateCutInfo(li);}
+    autoSaveSession();
+  });
+  $('autoBW').addEventListener('change',()=>{invalidateBridgedMasks();autoSaveSession();});
   // Layer bridge view
   $('lvPrev').addEventListener('click',()=>lvNav(-1));
   $('lvNext').addEventListener('click',()=>lvNav(1));
