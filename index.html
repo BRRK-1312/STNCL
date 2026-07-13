@@ -1737,6 +1737,65 @@ function renderPreview(){
   if(dimsChanged)vpFit();else vpApply();
 }
 
+/* Anti-flood undo: a slider drag fires dozens of input events; one
+   snapshot per gesture is enough. Same tag within 900ms → skip. */
+let _lastUndoTag=null,_lastUndoT=0;
+function pushUndoTagged(tag){
+  const now=Date.now();
+  if(tag&&tag===_lastUndoTag&&now-_lastUndoT<900){_lastUndoT=now;return;}
+  _lastUndoTag=tag;_lastUndoT=now;
+  pushUndo();
+}
+
+/* Debounced per-layer pipeline rebuild: label updates stay instant,
+   the heavy mask rebuild+preview runs 90ms after the last input. */
+const _rebuildTimers={};
+function scheduleLayerRebuild(li){
+  clearTimeout(_rebuildTimers[li]);
+  _rebuildTimers[li]=setTimeout(()=>{
+    S.masks[li]=rebuildLayerMask(li);
+    invalidateBeCache();VEC_CACHE.delete(li);invalidateBridgedMasks();
+    renderPreview();updateAllThumbs();
+    autoSaveSession();
+    setTimeout(()=>updateCutInfo(li),200);
+  },90);
+}
+
+/* Repaint all layer thumbnails from cached stacked masks WITHOUT
+   recreating the DOM (recreating mid-drag kills the slider). */
+function updateAllThumbs(){
+  const w=S.imgW,h=S.imgH;
+  if(!w)return;
+  for(let idx=0;idx<S.layers.length;idx++){
+    const tc=$(`lthumb${idx}`);if(!tc)continue;
+    tc.width=32;tc.height=32;
+    const mask=getStackedMask(idx);if(!mask)continue;
+    const ctx=tc.getContext('2d');
+    const idata=ctx.createImageData(32,32),px=idata.data;
+    const sw=w/32,sh=h/32;
+    for(let ty=0;ty<32;ty++)for(let tx=0;tx<32;tx++){
+      const si=(Math.round(ty*sh)*w+Math.round(tx*sw));
+      const v=mask[si]>0?0:255;
+      const ti=(ty*32+tx)*4;
+      px[ti]=v;px[ti+1]=v;px[ti+2]=v;px[ti+3]=255;
+    }
+    ctx.putImageData(idata,0,0);
+  }
+}
+
+/* Reorder ALL per-layer parallel arrays together — layers, masks,
+   bridgeOverrides, islandDeletes, manualLines. Reordering only two
+   of them silently attaches bridge edits to the wrong layer. */
+function moveLayer(from,to){
+  for(const arr of [S.layers,S.masks,S.bridgeOverrides,S.islandDeletes,S.manualLines]){
+    const[el]=arr.splice(from,1);
+    arr.splice(to,0,el);
+  }
+  invalidateBeCache();invalidateBridgedMasks();VEC_CACHE.clear();
+  if(typeof updateCmpSelects==='function')updateCmpSelects();
+  autoSaveSession();
+}
+
 /* ═══════════════════════════════════════════
    MERGE LAYER (⤵)
    Fuses layer li into the NEXT one (li+1, darker,
@@ -1764,6 +1823,7 @@ function mergeLayerDown(li){
   invalidateBeCache();invalidateBridgedMasks();VEC_CACHE.clear();
   detectBackgroundLayer();
   autoSaveSession();
+  if(typeof updateCmpSelects==='function')updateCmpSelects();
   renderLayers();renderPreview();renderHistogram();
   for(let k=0;k<S.layers.length;k++)updateCutInfo(k);
   setStatus(`Capas fusionadas → ${dst.name}`,`${S.layers.length} capas`);
@@ -1849,28 +1909,23 @@ function renderLayers(){
       inp.addEventListener('input',e=>{
         const li=+e.target.dataset.li,val=+e.target.value,role=e.target.dataset.role;
         if(role==='thr'){
-          pushUndo();
+          pushUndoTagged('thr'+li);
           S.layers[li].threshold=val;
           $(`tv${li}`).textContent=val.toFixed(2);
-          S.masks[li]=rebuildLayerMask(li);
-          invalidateBeCache();VEC_CACHE.delete(li);invalidateBridgedMasks();
-          autoSaveSession();renderPreview();setTimeout(()=>updateCutInfo(li),500);
+          scheduleLayerRebuild(li);
         } else if(role==='open'){
-          pushUndo();
+          pushUndoTagged('open'+li);
           S.layers[li].open=val;
           $(`ov${li}`).textContent=val===0?'OFF':val+'px';
-          S.masks[li]=rebuildLayerMask(li);
-          invalidateBeCache();VEC_CACHE.delete(li);invalidateBridgedMasks();
-          autoSaveSession();renderPreview();
+          scheduleLayerRebuild(li);
         } else if(role==='detail'){
-          pushUndo();
+          pushUndoTagged('detail'+li);
           S.layers[li].detail=val;
           const mm2=px2mm2(val);
           $(`dv${li}`).textContent=val===0?'OFF':`${val}px² ≈${mm2.toFixed(1)}mm²`;
-          S.masks[li]=rebuildLayerMask(li);
-          invalidateBeCache();VEC_CACHE.delete(li);invalidateBridgedMasks();
-          autoSaveSession();renderPreview();setTimeout(()=>updateCutInfo(li),500);
+          scheduleLayerRebuild(li);
         } else if(role==='kerf'){
+          pushUndoTagged('kerf'+li);
           S.layers[li].kerf=val;
           $(`kv${li}`).textContent=val==0?'OFF':val.toFixed(1)+'mm';
           invalidateBeCache();VEC_CACHE.delete(li);invalidateBridgedMasks();
@@ -1894,7 +1949,8 @@ function renderLayers(){
         const li=+btn.dataset.li,role=btn.dataset.role;
         if(role==='vis'){
           S.layers[li].visible=S.layers[li].visible===false?true:false;
-          renderLayers();renderPreview();
+          invalidateBeCache();invalidateBridgedMasks();VEC_CACHE.clear();
+          autoSaveSession();renderLayers();renderPreview();
         } else if(role==='inv'){
           S.layers[li].inverted=!S.layers[li].inverted;
           S.masks[li]=rebuildLayerMask(li);
@@ -1915,13 +1971,13 @@ function renderLayers(){
           if(S.beData&&S.beData.li===li) exitBridgeEdit();
           else enterBridgeEdit(li);
         } else if(role==='up'&&li>0){
-          [S.layers[li-1],S.layers[li]]=[S.layers[li],S.layers[li-1]];
-          [S.masks[li-1], S.masks[li]] =[S.masks[li], S.masks[li-1]];
-          invalidateBridgedMasks();autoSaveSession();renderLayers();renderPreview();
+          pushUndo();
+          moveLayer(li,li-1);
+          renderLayers();renderPreview();
         } else if(role==='dn'&&li<S.layers.length-1){
-          [S.layers[li+1],S.layers[li]]=[S.layers[li],S.layers[li+1]];
-          [S.masks[li+1], S.masks[li]] =[S.masks[li], S.masks[li+1]];
-          invalidateBridgedMasks();renderLayers();renderPreview();
+          pushUndo();
+          moveLayer(li,li+1);
+          renderLayers();renderPreview();
         }
       });
     });
@@ -1957,8 +2013,8 @@ function renderLayers(){
       e.preventDefault();
       const target=+item.dataset.idx;
       if(dragSrc===null||dragSrc===target)return;
-      const[ml]=S.layers.splice(dragSrc,1);const[mm]=S.masks.splice(dragSrc,1);
-      S.layers.splice(target,0,ml);S.masks.splice(target,0,mm);
+      pushUndo();
+      moveLayer(dragSrc,target);
       dragSrc=null;renderLayers();renderPreview();
     });
 
@@ -2009,6 +2065,7 @@ async function ensureBridgedMasks(){
 
 function invalidateBridgedMasks(){
   S.lastBridgedMasks=null;
+  invalidateStackCache();
 }
 
 async function enterLayerView(li){
@@ -2176,19 +2233,58 @@ function detectBackgroundLayer(){
   }
 }
 
-/* Union of all masks painted ON TOP of layer li (visible only).
-   Returns null when there are no upper layers. */
-function getUpperUnion(li){
-  const base=S.masks[li];if(!base)return null;
-  const n=base.length;
-  let u=null;
-  for(let j=li+1;j<S.masks.length;j++){
-    if(S.layers[j]&&(S.layers[j].visible===false||S.layers[j].isBg))continue;
-    const m=S.masks[j];if(!m)continue;
-    if(!u)u=new Uint8Array(n);
-    for(let i=0;i<n;i++)if(m[i])u[i]=255;
+/* ═══ STACK CACHE ═══
+   Stacked + upper-union masks for ALL layers built in ONE suffix
+   pass (O(n·L)), then served from cache. Rebuilt lazily after any
+   invalidation. Eliminates the morphClose-per-call lag in preview,
+   thumbnails, CMP and cut-info. */
+let STACK_CACHE=null;   // per-layer stacked masks
+let UPPER_CACHE=null;   // per-layer union of layers painted on top
+function invalidateStackCache(){STACK_CACHE=null;UPPER_CACHE=null;}
+
+function buildStackCache(){
+  const L=S.masks.length,w=S.imgW,h=S.imgH,n=w*h;
+  STACK_CACHE=new Array(L);UPPER_CACHE=new Array(L);
+  const trapPx=getTrapPx();
+  const defTrap=Math.max(1,trapPx||Math.round(1.5*(w||1200)/((parseFloat($('outW').value)||30)*10)));
+  let acc=null; // union of base masks of layers above current (visible, non-bg)
+  for(let li=L-1;li>=0;li--){
+    const base=S.masks[li];
+    UPPER_CACHE[li]=acc?new Uint8Array(acc):null;
+    if(!base){STACK_CACHE[li]=base;}
+    else{
+      const l=S.layers[li];
+      let st;
+      if(!S.stackMode||l&&l.isBg||!acc){
+        st=S.stackMode?new Uint8Array(base):base;
+      }else if(S.stackMode==='stack'){
+        st=new Uint8Array(base);
+        const cov=trapPx>0?morphDilate(acc,w,h,trapPx):acc;
+        for(let i=0;i<n;i++)if(cov[i])st[i]=255;
+        st=morphErode(morphDilate(st,w,h,1),w,h,1); // seal K-means seams
+      }else{ // 'trap'
+        st=new Uint8Array(base);
+        const dil=morphDilate(base,w,h,defTrap);
+        for(let i=0;i<n;i++)if(dil[i]&&acc[i])st[i]=255;
+        st=morphErode(morphDilate(st,w,h,1),w,h,1);
+      }
+      STACK_CACHE[li]=st;
+    }
+    // accumulate this layer's BASE zone for the layers below
+    if(base&&S.layers[li]&&S.layers[li].visible!==false&&!S.layers[li].isBg){
+      if(!acc)acc=new Uint8Array(base);
+      else for(let i=0;i<n;i++)if(base[i])acc[i]=255;
+    }
   }
-  return u;
+}
+
+function ensureStackCache(){
+  if(!STACK_CACHE||STACK_CACHE.length!==S.masks.length)buildStackCache();
+}
+
+function getUpperUnion(li){
+  ensureStackCache();
+  return UPPER_CACHE[li];
 }
 
 /* Trap distance in px from the mm slider + output dims */
@@ -2200,36 +2296,10 @@ function getTrapPx(){
   return Math.max(1,Math.round(trapMm*(S.imgW||1200)/(widthCm*10)));
 }
 
-/* Three modes:
-   ''      → off  (each layer = its own K-means zone)
-   'trap'  → underbase choke: layer creeps trapMm UNDER its upper
-             neighbours at shared borders. Saves paint, keeps the
-             misregistration tolerance.
-   'stack' → full stack: layer covers everything painted on top
-             (+ optional trapMm spread beyond upper boundaries).
-             Base layer = complete silhouette.  */
 function getStackedMask(li){
   if(!S.stackMode)return S.masks[li];
-  const base=S.masks[li];
-  if(!base)return base;
-  // Background layer: no stacking — its stencil is its own zone
-  if(S.layers[li]&&S.layers[li].isBg)return new Uint8Array(base);
-  const upper=getUpperUnion(li);
-  if(!upper)return new Uint8Array(base); // top layer: unchanged (copy)
-  const n=base.length,w=S.imgW,h=S.imgH;
-  const trapPx=getTrapPx();
-  const out=new Uint8Array(base);
-  if(S.stackMode==='stack'){
-    const cov=trapPx>0?morphDilate(upper,w,h,trapPx):upper;
-    for(let i=0;i<n;i++)if(cov[i])out[i]=255;
-    // Seal 1px K-means seams between the merged zones (paper slivers
-    // inside ink are fragile to cut and show as thin white lines)
-    return morphErode(morphDilate(out,w,h,1),w,h,1);
-  }
-  // 'trap' mode: base ∪ (dilate(base,trapPx) ∩ upper)
-  const dil=morphDilate(base,w,h,Math.max(1,trapPx||Math.round(1.5*(S.imgW||1200)/((parseFloat($('outW').value)||30)*10))));
-  for(let i=0;i<n;i++)if(dil[i]&&upper[i])out[i]=255;
-  return morphErode(morphDilate(out,w,h,1),w,h,1);
+  ensureStackCache();
+  return STACK_CACHE[li];
 }
 
 /* ═══════════════════════════════════════════
@@ -3012,7 +3082,9 @@ async function exportSingleLayer(li){
   // NOTE: inversion already applied in rebuildLayerMask — no re-invert
   const baseMask=applyIslandDeletes(getStackedMask(li),S.islandDeletes[li]);
   const auto=addBridges(baseMask,w,h,getLayerBridgePx(li,bridgePx),minI,layer.maxIsle||0,getLayerOverrides(li),getCoverMask(li));
-  const bridgedMask=removeSmallInkBlobs(applyManualLines(auto,w,h,baseMask,S.manualLines[li]||[]),w,h,4);
+  const manualMask=applyManualLines(auto,w,h,baseMask,S.manualLines[li]||[]);
+  // Kerf + noise floor — identical pipeline to exportZip
+  const bridgedMask=removeSmallInkBlobs(applyKerf(manualMask,w,h,layer.kerf||0,widthCm),w,h,4);
   setProgress(60);await sleep(10);
   const num=String(li+1).padStart(2,'0');
   const col=layer.color.replace('#','');
@@ -4263,6 +4335,15 @@ function beFindNearestLine(li,x,y){
 
   // Buttons
   window.addEventListener('resize',()=>{if(S.imgW)vpFit();});
+  // PRO: surface internal errors instead of failing silently
+  window.addEventListener('error',e=>{
+    console.error(e.error||e.message);
+    try{setStatus('⚠ Error interno: '+(e.message||'ver consola'));showProgress(false);}catch(_){}
+  });
+  window.addEventListener('unhandledrejection',e=>{
+    console.error(e.reason);
+    try{setStatus('⚠ Error interno: '+(e.reason&&e.reason.message||'ver consola'));showProgress(false);}catch(_){}
+  });
   // A4/A3 presets (landscape: swap)
   const PRESETS={a4p:[21,29.7],a4l:[29.7,21],a3p:[29.7,42],a3l:[42,29.7],a2p:[42,59.4],a1p:[59.4,84.1],s7c:[70,100]};
   document.querySelectorAll('.preset-btn').forEach(b=>{
